@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
+#test
 mu=0.0
 sigma=1
 scores_per_sim=100000
