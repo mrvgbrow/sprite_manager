@@ -1,9 +1,13 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+
 import os
 import sys
 import cv2
 import numpy as np
 import argparse
 import myimutils
+import myargutils
+import myspritetools
 import time
 import math
 
@@ -34,9 +38,9 @@ iter=5
 threshold=0.07
 imlist1 = myimutils.read_imdir(sys.argv[1])
 image=imlist1[0]
-
-if len(imlist1)>1:
-    myimutils.make_outdir(sys.argv[2],1)
+game=myargutils.check_arg(sys.argv,2,'none')
+object=myargutils.check_arg(sys.argv,3,'none')
+frame=myargutils.check_arg(sys.argv,4,'none')
 
 while True:
     box=myimutils.capture_box(image)
@@ -47,10 +51,15 @@ while True:
     cv2.imshow("image2",image)
     while True:
         key = cv2.waitKey(1) & 0xFF
-        if key == ord("a") or key == ord("r"):
+        if key == ord("a") or key == ord("r") or key == ord("s"):
             break
     if key == ord("a"):
         break
+    if key == ord("s"):
+        myspritetools.add_sprite_image(image_trans,game,object,frame)
+        break
+
+sys.exit()
 
 i=0
 corner1=box[0]

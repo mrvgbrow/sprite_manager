@@ -1,3 +1,4 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
 
 import math
 import cv2
@@ -6,18 +7,25 @@ import os
 import sys
 import time
 import shutil
+from PIL import Image
 
 def add_images(image2,image1,x,y):
     x1,x2,y1,y2=get_overlap(image1,image2,x,y)
     alpha_2=image2[:y2-y1,:x2-x1,3]/255.0
     alpha_1=1.0-alpha_2
+    image3=image1.copy()
     for c in range(0,3):
-        image1[y1:y2,x1:x2,c]=(alpha_2*image2[:y2-y1,:x2-x1,c]+alpha_1*image1[y1:y2,x1:x2,c])
-    return image1
+        image3[y1:y2,x1:x2,c]=(alpha_2*image2[:y2-y1,:x2-x1,c]+alpha_1*image1[y1:y2,x1:x2,c])
+    return image3
 
-def add_alpha_channel(image):
-    image=np.dstack((image,np.ones((image.shape[0],image.shape[1]),'byte')*255))
-    return image
+def add_alpha_channel(images):
+    images_trans=[]
+    x_size=images[0].shape[0]
+    y_size=images[0].shape[1]
+    for im in images:
+        image=np.dstack((im,np.ones((x_size,y_size),'byte')*255))
+        images_trans.append(image)
+    return images_trans
 
 def get_overlap(image1,image2,x,y):
     xlim=image1.shape[1]
@@ -30,12 +38,27 @@ def get_overlap(image1,image2,x,y):
         y2=ylim-1
     return [x1,x2,y1,y2]
 
+def read_gif(infile):
+    im=Image.open(infile)
+    allims=[]
+    durations=[]
+    for i in range(im.n_frames):
+        im.seek(i)
+        durations.append(im.info['duration'])
+        pix=np.array(im.convert('RGB'))
+        pix=pix[:,:,[2,1,0]]
+        allims.append(pix)
+        
+    return (allims,durations)
+
 def read_imdir(dir):
     name,extension=os.path.splitext(dir)
     if extension=='.gif':
-        make_outdir('temp',1)
-        deanimate_gif(dir,'temp')
-        dir='temp'
+        gifarr=read_gif(dir)
+        return gifarr
+#        make_outdir('temp',1)
+#        deanimate_gif(dir,'temp')
+#        dir='temp'
     if extension=='.png':
         return [cv2.imread(dir,cv2.IMREAD_UNCHANGED)]
     elif os.path.isdir(dir):
@@ -139,7 +162,7 @@ def capture_box(image):
         cv2.imshow("image",clone)
         key = cv2.waitKey(1) & 0xFF
 
-        if key == ord("c"):
+        if key == ord("a"):
             break
 
     cv2.destroyAllWindows()
@@ -214,3 +237,10 @@ def mask_replace(image,mask,color):
     image[mask_indices[0],mask_indices[1],1] = color[1]
     image[mask_indices[0],mask_indices[1],2] = color[2]
     return image
+
+def write_animation(list_np_array,outfile):
+    new_array=[]
+    for im in list_np_array:
+        im=im[:,:,[2,1,0,3]]
+        new_array.append(Image.fromarray(im.astype('uint8')))
+    new_array[0].save(outfile,save_all=True,append_images=new_array[1:],duration=10,loop=0)

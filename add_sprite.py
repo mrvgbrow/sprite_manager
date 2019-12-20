@@ -1,3 +1,6 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+
+
 import os
 import sys
 import cv2
@@ -13,15 +16,14 @@ from PIL import ImageSequence, Image, ImageOps
 #ap.add_argument("-i","--image",required=True,help="Path to the image")
 #args=vars(ap.parse_args())
 
-background=cv2.imread(sys.argv[1],cv2.IMREAD_UNCHANGED)
+background=myimutils.read_imdir(sys.argv[1])
+frame=myargutils.check_arg(sys.argv,4,'all')
 
 background_trans=myimutils.add_alpha_channel(background)
-mysprite=myspritetools.Sprite(sys.argv[2],sys.argv[3],sys.argv[4])
-print(type(mysprite.center[0]))
-position=myimutils.capture_point(background)
-new_im=mysprite.overlay(background_trans,position)
-cv2.imwrite('test.png',new_im)
-#myspritetools.get_sprite(sys.argv[2],sys.argv[3],sys.argv[4])
+mysprite=myspritetools.Sprite(sys.argv[2],sys.argv[3],frame)
+position=myimutils.capture_point(background[0])
+new_frames=mysprite.overlay(background_trans,position)
+myimutils.write_animation(new_frames,'test.gif')
 sys.exit()
 im=Image.open(sys.argv[1])
 pix=np.array(im.convert('RGB'))

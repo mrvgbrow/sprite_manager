@@ -1,3 +1,5 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+
 import os
 import sys
 import cv2

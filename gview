@@ -1,0 +1,32 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+
+import myimutils
+import sys
+import os
+from PIL import Image
+import cv2
+
+ims,durations=myimutils.read_gif(sys.argv[1])
+
+i=0
+speed_factor=1.0
+pause=0
+while True:
+    cv2.imshow(sys.argv[1],ims[i])
+    wait=int(durations[i]*speed_factor)
+    key = cv2.waitKey(wait) & 0xFF
+    if key==ord('x'):
+        break
+    if key==ord('+'):
+        speed_factor-=0.3
+    if key==ord('-'):
+        speed_factor+=0.3
+    if key==ord('p'):
+        pause=(pause+1)%2
+    if pause==0:
+        if i==len(ims)-1:
+            i=0
+        else:
+            i+=1
+cv2.destroyAllWindows()
+
