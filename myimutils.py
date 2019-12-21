@@ -54,8 +54,8 @@ def read_gif(infile):
 def read_imdir(dir):
     name,extension=os.path.splitext(dir)
     if extension=='.gif':
-        gifarr=read_gif(dir)
-        return gifarr
+        gifarr,durations=read_gif(dir)
+        return (gifarr,durations)
 #        make_outdir('temp',1)
 #        deanimate_gif(dir,'temp')
 #        dir='temp'
@@ -238,9 +238,67 @@ def mask_replace(image,mask,color):
     image[mask_indices[0],mask_indices[1],2] = color[2]
     return image
 
-def write_animation(list_np_array,outfile):
+def write_animation(list_np_array,durations,outfile):
     new_array=[]
     for im in list_np_array:
         im=im[:,:,[2,1,0,3]]
         new_array.append(Image.fromarray(im.astype('uint8')))
-    new_array[0].save(outfile,save_all=True,append_images=new_array[1:],duration=10,loop=0)
+    new_array[0].save(outfile,save_all=True,append_images=new_array[1:],duration=durations,loop=0)
+
+def gif_viewer(images,durations,title):
+    i=0
+    speed_factor=1.0
+    pause=0
+    info_window=np.zeros((40,500,3))
+    print(images[0].shape)
+    while True:
+        info_window*=0
+        info_string='Frame: '+str(i)+', delay = '+str(speed_factor)
+        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,1.0,(255,255,255),1)
+        thisim=images[i]
+        cv2.imshow(title,thisim.astype('uint8'))
+        cv2.imshow('Info',info_window)
+        wait=int(durations[i]*speed_factor)
+        key = cv2.waitKey(wait) & 0xFF
+        if key==ord('x'):
+            break
+        if key==ord('+'):
+            speed_factor-=0.3
+        if key==ord('-'):
+            speed_factor+=0.3
+        if key==ord(']'):
+            i=(i+1)%len(images)
+        if key==ord('['):
+            i=(i-1)%len(images)
+        if key==ord('p'):
+            pause=(pause+1)%2
+        if pause==0:
+            i=(i+1)%len(images)
+    cv2.destroyAllWindows()
+    return i
+
+def rotate_image(mat, angle):
+    """
+    Rotates an image (angle in degrees) and expands image to avoid cropping
+    """
+
+    height, width = mat.shape[:2] # image shape has 3 dimensions
+    image_center = (width/2, height/2) # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+
+    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
+
+    # rotation calculates the cos and sin, taking absolutes of those.
+    abs_cos = abs(rotation_mat[0,0])
+    abs_sin = abs(rotation_mat[0,1])
+
+    # find the new width and height bounds
+    bound_w = int(height * abs_sin + width * abs_cos)
+    bound_h = int(height * abs_cos + width * abs_sin)
+
+    # subtract old image center (bringing image back to origo) and adding the new image center coordinates
+    rotation_mat[0, 2] += bound_w/2 - image_center[0]
+    rotation_mat[1, 2] += bound_h/2 - image_center[1]
+
+    # rotate image with the new bounds and translated rotation matrix
+    rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
+    return rotated_mat

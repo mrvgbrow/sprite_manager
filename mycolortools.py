@@ -19,11 +19,14 @@ def click_color(event,x,y,flags,param):
         refPt=(x,y)
         clicked=1
 
-def select_color(image,color1,fuzz):
+def select_color(image,color1,fuzz,invert=False):
     blue=image[:,:,0].astype('int')
     green=image[:,:,1].astype('int')
     red=image[:,:,2].astype('int')
-    indices=np.nonzero((color1[0]-blue)**2+(color1[1]-green)**2+(color1[2]-red)**2<=fuzz**2)
+    if invert==False:
+        indices=np.nonzero((color1[0]-blue)**2+(color1[1]-green)**2+(color1[2]-red)**2<=fuzz**2)
+    else:
+        indices=np.nonzero((color1[0]-blue)**2+(color1[1]-green)**2+(color1[2]-red)**2>fuzz**2)
     return indices
 
 def imshow_get_color(image,title,exit_char):

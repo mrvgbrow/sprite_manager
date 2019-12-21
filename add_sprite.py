@@ -12,38 +12,29 @@ import myspritetools
 import time
 from PIL import ImageSequence, Image, ImageOps
 
-#ap = argparse.ArgumentParser()
-#ap.add_argument("-i","--image",required=True,help="Path to the image")
-#args=vars(ap.parse_args())
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input background file",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+ap.add_argument("-p","--pace",required=False,help="Speed at which the sprite sequence moves",default=1,type=int)
+ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+ap.add_argument("object",help="Name of the object the sprite represents",type=str)
+ap.add_argument("-f","--frame",required=False,help="The particular frame in the sprite sequence",type=str,default='all')
+ap.add_argument("-s","--size",required=False,help="The sprite size scale factor",type=float,default=1.0)
+ap.add_argument("-r","--rotate",required=False,help="The sprite rotation rate",type=float,default=0.0)
+args=vars(ap.parse_args())
 
-background=myimutils.read_imdir(sys.argv[1])
-frame=myargutils.check_arg(sys.argv,4,'all')
+game=args['game']
+object=args['object']
+(background,durations)=myimutils.read_imdir(args['infile'])
+frame=args['frame']
+pace=args['pace']
+outfile=args['outfile']
+size=args['size']
+rotate=args['rotate']
 
 background_trans=myimutils.add_alpha_channel(background)
-mysprite=myspritetools.Sprite(sys.argv[2],sys.argv[3],frame)
+mysprite=myspritetools.Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
 position=myimutils.capture_point(background[0])
 new_frames=mysprite.overlay(background_trans,position)
-myimutils.write_animation(new_frames,'test.gif')
-sys.exit()
-im=Image.open(sys.argv[1])
-pix=np.array(im.convert('RGB'))
-print(pix.shape)
-
-outfile=myargutils.check_arg(sys.argv,2,'temp.gif')
-dimens=im.size
-
-square_size=max(dimens)
-if dimens[0]<square_size:
-    padding=(int((square_size-dimens[0])/2),0,int((square_size-dimens[0])/2),0)
-else:
-    padding=(0,int((square_size-dimens[1])/2),0,int((square_size-dimens[1])/2))
-
-frames=[]
-print(padding,square_size)
-for frame in range(0,im.n_frames):
-    im.seek(frame)
-    new_im=im.convert('RGBA')
-    new_im2=ImageOps.expand(new_im,padding)
-    frames.append(new_im2)
-
-frames[0].save(outfile,save_all=True,append_images=frames[1:],duration=10,loop=0)
+myimutils.write_animation(new_frames,durations,outfile)
+dum=myimutils.gif_viewer(new_frames,durations,'Result')
