@@ -80,6 +80,12 @@ def click_point(event,x,y,flags,param):
         refPt=(x,y)
         clicked=1
 
+def click_mouseover(event,x,y,flags,param):
+    global refPt,clicked
+    
+    if event == cv2.EVENT_MOUSEMOVE:
+        refPt=(x,y)
+
 def clicksave(event,x,y,flags,param):
     global clicked,pointlist
     if event == cv2.EVENT_LBUTTONDOWN:
@@ -246,15 +252,20 @@ def write_animation(list_np_array,durations,outfile):
     new_array[0].save(outfile,save_all=True,append_images=new_array[1:],duration=durations,loop=0)
 
 def gif_viewer(images,durations,title):
+    global refPt
+
+    refPt=(0,0)
     i=0
     speed_factor=1.0
     pause=0
     info_window=np.zeros((40,500,3))
     print(images[0].shape)
+    cv2.namedWindow(title)
+    cv2.setMouseCallback(title,click_mouseover)
     while True:
         info_window*=0
-        info_string='Frame: '+str(i)+', delay = '+str(speed_factor)
-        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,1.0,(255,255,255),1)
+        info_string='Frame: '+str(i)+', delay = '+str(speed_factor)+', (x,y) = '+str(refPt)
+        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         thisim=images[i]
         cv2.imshow(title,thisim.astype('uint8'))
         cv2.imshow('Info',info_window)
@@ -302,3 +313,4 @@ def rotate_image(mat, angle):
     # rotate image with the new bounds and translated rotation matrix
     rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
     return rotated_mat
+

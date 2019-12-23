@@ -22,7 +22,7 @@ class sprite_path:
             self.angles=np.array(angles)
 
 class Sprite:
-    def __init__(self,game,object,frame,pace=1,size=1,rotate=0,path=sprite_path([0.0])):
+    def __init__(self,game,object,frame,pace=1,size=1,rotate=0,path=sprite_path([0.0]),directory=''):
         self.data=[]
         self.visible=[]
         self.center=[]
@@ -30,7 +30,11 @@ class Sprite:
         self.size=size
         self.rotate=rotate
         self.path=path
-        self.full_path=sprite_path(game,object,frame)
+        if directory != '':
+            self.full_path=directory
+            frame='all'
+        else:
+            self.full_path=sprite_path(game,object,frame)
         if frame == "all":
             self.read_dir(self.full_path)
         else:
@@ -43,9 +47,7 @@ class Sprite:
             return
         data=cv2.imread(self.full_path,cv2.IMREAD_UNCHANGED)
         self.data.append(data)
-        visible=np.nonzero(data[:,:,3])
-        self.visible.append(visible)
-        self.center.append([np.mean(visible[0]),np.mean(visible[1])])
+        self.recenter()
         self.n_image=1
 
     def read_dir(self,path):
@@ -56,30 +58,83 @@ class Sprite:
         for thisim in files:
             image=cv2.imread(path+"/"+thisim,cv2.IMREAD_UNCHANGED)
             self.data.append(image)
-            visible=np.nonzero(image[:,:,3])
-            self.visible.append(visible)
-            self.center.append([np.mean(visible[0]),np.mean(visible[1])])
         self.n_image=len(files)
+        self.recenter()
 
     def resize(self,size):
-        self.size=size
         if size != 1.0:
-            self.data_overlay=[]
             for i in range(self.n_image):
                 s_image=self.data[i]
-                center=self.center[i]
-                self.center[i]=(float(center[0])*size,float(center[1])*size)
-                self.data_overlay.append(cv2.resize(s_image,(0,0),fx=size,fy=size,interpolation=cv2.INTER_AREA))
-        else:
-            self.data_overlay=self.data
+                image=cv2.resize(s_image,(0,0),fx=size,fy=size,interpolation=cv2.INTER_LINEAR)
+                self.data[i]=image
+            self.recenter()
 
-    def overlay(self,background,position):
+    def pad(self,x,y):
+        for i in range(self.n_image):
+            new_im=np.zeros([y,x,4],'uint8')
+            old_im=self.data[i]
+            xdiff=x-old_im.shape[1]
+            ydiff=y-old_im.shape[0]
+            new_im[int(ydiff/2):int(ydiff/2)+old_im.shape[0],int(xdiff/2):int(xdiff/2)+old_im.shape[1]]=old_im
+            self.data[i]=new_im
+            self.recenter()
+
+    def recenter(self):
+        self.visible=[]
+        self.center=[]
+        for i in range(self.n_image):
+            image=self.data[i]
+            visible=np.nonzero(image[:,:,3])
+            self.visible.append(visible)
+            self.center.append([np.mean(visible[1]),np.mean(visible[0])])
+
+    def compute_fit(self,image,i):
+        visible=self.visible[i]
+        sprite_image=self.data[i][visible].astype('float')
+        sprite_image=sprite_image[...,0:3]
+        fit_quality=np.sum((image[visible].astype('float')-sprite_image)**2)
+        fit_quality=math.sqrt(fit_quality)/len(visible[0]/3)
+        return fit_quality
+
+    def fit(self,background,position,xyrange):
+        chimin=1.0e30
+        for i in range(self.n_image):
+            sprite_image=self.data[i]
+            center0=self.center[i]
+            shape=sprite_image.shape
+
+            for x in range(xyrange):
+                for y in range(xyrange):
+                    center=(center0[0]+(int((x-xyrange/2))),center0[1]+(int((y-xyrange/2))))
+                    true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
+                    back_sub=background[true_pos[1]:true_pos[1]+shape[0],true_pos[0]:true_pos[0]+shape[1]]
+                    chival=self.compute_fit(back_sub,i)
+                    if chival<chimin:
+                        chimin=chival
+                        dxmin=int(x-xyrange/2)
+                        dymin=int(y-xyrange/2)
+                        imin=i
+        return [chimin,dxmin,dymin,imin]
+
+    def maxsize(self):
+        maxsize=0
+        for i in range(self.n_image):
+            maxhere=np.max(self.visible[i])
+            if maxhere>maxsize:
+                maxsize=maxhere
+        return maxsize
+
+    def overlay(self,background,position,frames=0):
         overlay=[]
         pace_count=0
         s_index=0
-        for i in range(len(background)):
+        if frames==0:
+            frames=len(background)
+        else:
+            background=[background]*frames
+        for i in range(frames):
             pace_count+=1
-            img=self.data_overlay[s_index]
+            img=self.data[s_index]
             if pace_count==self.pace:
                 pace_count=0
                 s_index+=1
@@ -90,7 +145,7 @@ class Sprite:
                 center=self.center[s_index]
                 center=(center[0]+(img_new.shape[1]-img.shape[1])/2,center[1]+(img_new.shape[0]-img.shape[0])/2)
             else:
-                img_new=self.data_overlay[s_index]
+                img_new=self.data[s_index]
                 center=self.center[s_index]
             true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
             overlaid=myimutils.add_images(img_new,background[i],true_pos[0],true_pos[1])
@@ -104,7 +159,6 @@ def add_sprite_image(image,game,object,frame):
     sprite_im=image[mins[0]:maxes[0]+1,mins[1]:maxes[1]+1,:]
     spath=sprite_path(game,object,frame)
     dirname,filename=os.path.split(spath)
-    print(dirname,filename)
     os.makedirs(dirname,exist_ok=True)
     cv2.imwrite(spath,sprite_im)
 

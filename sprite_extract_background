@@ -49,10 +49,10 @@ while True:
     corner2=box[1]
     image_sub=image[corner1[1]:corner2[1],corner1[0]:corner2[0],:]
     mask_sub=mask[corner1[1]:corner2[1],corner1[0]:corner2[0]]
-    image_zoom=cv2.resize(image_sub,(0,0),fx=4,fy=4,interpolation=cv2.INTER_AREA)
     image_trans=myimutils.maketransparent_withmask(image_sub,mask_sub)
+    image_zoom=cv2.resize(image_trans,(0,0),fx=4,fy=4,interpolation=cv2.INTER_AREA)
     cv2.namedWindow("image2")
-    cv2.imshow("image2",image_zoom)
+    cv2.imshow("image2",image_zoom.astype('uint8'))
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord("a") or key == ord("r") or key == ord("s"):

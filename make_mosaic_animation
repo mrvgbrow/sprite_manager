@@ -1,0 +1,55 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+
+import random
+import myspritetools
+import myimutils
+import argparse 
+import glob
+import math
+import numpy as np
+
+ap = argparse.ArgumentParser()
+ap.add_argument("inglob",help="Glob listing the sprites to include",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+ap.add_argument("-b","--background",required=False,help="Name of the input background file",default='None')
+ap.add_argument("-d","--delay",required=False,help="Delay between animation frames in milliseconds",default=300,type=int)
+ap.add_argument("-r","--randomize",required=False,help="Set to True to randomize the mosaic panels",default=True)
+ap.add_argument("-p","--pace",required=False,help="Set the pace of the sprite animations",default=1,type=int)
+ap.add_argument("-s","--panelsize",required=False,help="Size of the mosaic panels in pixels",default=70)
+args=vars(ap.parse_args())
+
+panel_size=args['panelsize']
+spritedirs=glob.glob(args['inglob'])
+if args['randomize']==True:
+    random.shuffle(spritedirs)
+mosaic_dim=int(math.sqrt(len(spritedirs)))
+if mosaic_dim**2<len(spritedirs):
+    mosaic_dim+=1
+if args['background'] == 'None':
+    n_frames=100
+    background=np.zeros([panel_size*mosaic_dim,panel_size*mosaic_dim,3])
+    background=background*n_frames
+else:
+    background,durations=myimutils.read_gif(args['background'])
+    n_frames=len(background)
+i=0
+j=0
+for dir in spritedirs:
+    position_x=panel_size*i+int(panel_size/2)
+    position_y=panel_size*j+int(panel_size/2)
+    mysprite=myspritetools.Sprite("","","",directory=dir,pace=args['pace'])
+    maxsize=mysprite.maxsize()
+    sizefac=panel_size/maxsize*0.5
+    if sizefac>1:
+        mysprite.resize(sizefac)
+    maxsize=mysprite.maxsize()
+    if i==0 and j==0 and args['background']=='None':
+        background=mysprite.overlay(background,[position_x,position_y],frames=n_frames)
+    else:
+        background=mysprite.overlay(background,[position_x,position_y])
+    i+=1
+    if i==mosaic_dim:
+        i=0
+        j+=1
+background_trans=myimutils.add_alpha_channel(background)
+myimutils.write_animation(background_trans,[args['delay']]*n_frames,args['outfile'])
