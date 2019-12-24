@@ -22,19 +22,18 @@ class sprite_path:
             self.angles=np.array(angles)
 
 class Sprite:
-    def __init__(self,game,object,frame,pace=1,size=1,rotate=0,path=sprite_path([0.0]),directory=''):
+    def __init__(self,game,object,frame,pace=1,size=1,rotate=0,directory=''):
         self.data=[]
         self.visible=[]
         self.center=[]
         self.pace=pace
         self.size=size
         self.rotate=rotate
-        self.path=path
         if directory != '':
             self.full_path=directory
             frame='all'
         else:
-            self.full_path=sprite_path(game,object,frame)
+            self.full_path=sprite_fullpath(game,object,frame)
         if frame == "all":
             self.read_dir(self.full_path)
         else:
@@ -124,7 +123,7 @@ class Sprite:
                 maxsize=maxhere
         return maxsize
 
-    def overlay(self,background,position,frames=0):
+    def overlay(self,background,position,frames=0,path=0):
         overlay=[]
         pace_count=0
         s_index=0
@@ -132,9 +131,12 @@ class Sprite:
             frames=len(background)
         else:
             background=[background]*frames
+        if path == 0:
+            path=sprite_path([(position[0],position[1])]*frames)
         for i in range(frames):
             pace_count+=1
             img=self.data[s_index]
+            position=path.path[i]
             if pace_count==self.pace:
                 pace_count=0
                 s_index+=1
@@ -157,12 +159,12 @@ def add_sprite_image(image,game,object,frame):
     mins=np.amin(visible,axis=1)
     maxes=np.amax(visible,axis=1)
     sprite_im=image[mins[0]:maxes[0]+1,mins[1]:maxes[1]+1,:]
-    spath=sprite_path(game,object,frame)
+    spath=sprite_fullpath(game,object,frame)
     dirname,filename=os.path.split(spath)
     os.makedirs(dirname,exist_ok=True)
     cv2.imwrite(spath,sprite_im)
 
-def sprite_path(game,object,frame):
+def sprite_fullpath(game,object,frame):
     root_dir='C:/Users/sp4ce/OneDrive/Documents/Sprites/'
     if frame == "all":
         full_path=root_dir+game+"/"+object

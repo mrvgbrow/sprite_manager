@@ -12,6 +12,18 @@ def color_distance(image1,image2):
     color_dist=np.sqrt(color_dist)
     return color_dist
 
+def color_combine(image):
+    im=np.zeros([image.shape[0],image.shape[1]],'int')
+    im=1000000*image[...,0].astype('int')+1000*image[...,1].astype('int')+image[...,2].astype('int')
+    return im
+
+def color_expand(image):
+    im=np.zeros([image.shape[0],image.shape[1],3],'uint8')
+    im[:,:,0]=image[:,:]/1000000
+    im[:,:,1]=(image[:,:]-1000000*im[:,:,0].astype('int'))/1000
+    im[:,:,2]=image[:,:]-1000000*im[:,:,0]-1000*im[:,:,1]
+    return im
+
 def click_color(event,x,y,flags,param):
     global refPt,clicked
     

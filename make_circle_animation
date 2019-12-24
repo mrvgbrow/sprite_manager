@@ -1,0 +1,63 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+
+import sys
+import random
+import myspritetools
+import myimutils
+import argparse 
+import glob
+import math
+import numpy as np
+import genutils
+
+ap = argparse.ArgumentParser()
+ap.add_argument("inglob",help="Glob listing the sprites to include",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+ap.add_argument("-b","--background",required=False,help="Name of the input background file",default='None')
+ap.add_argument("-d","--delay",required=False,help="Delay between animation frames in milliseconds",default=300,type=int)
+ap.add_argument("-r","--randomize",required=False,help="Set to True to randomize the mosaic panels",default=True)
+ap.add_argument("-a","--radius",required=False,help="Radius of the circle (defaults to 35% of smallest dimension)",default=0)
+ap.add_argument("-p","--pace",required=False,help="Set the pace of the sprite animations",default=1,type=int)
+ap.add_argument("-c","--circlerate",required=False,help="Circle rotations per second",default=1.0,type=float)
+args=vars(ap.parse_args())
+
+spritedirs=glob.glob(args['inglob'])
+if args['randomize']==True:
+    random.shuffle(spritedirs)
+if args['background'] == 'None':
+    n_frames=100
+    background=np.zeros([panel_size*mosaic_dim,panel_size*mosaic_dim,3])
+    background=background*n_frames
+else:
+    background,durations=myimutils.read_gif(args['background'])
+    n_frames=len(background)
+background_center=(int(background[0].shape[0]/2),int(background[0].shape[1]/2))
+radius=args['radius']
+if radius==0:
+    radius=min([background_center[0],background_center[1]])*0.7
+start_angle_interval=2*math.pi/len(spritedirs)
+path_angle_interval=args['circlerate']*2*math.pi/args['delay']
+path=np.zeros(n_frames,'int')
+
+i=0
+for dir in spritedirs:
+    theta0=i*start_angle_interval
+
+    theta=theta0
+    path=[]
+    for frame in range(n_frames):
+        position=genutils.position_in_circle(radius,theta,background_center)
+        path.append((int(position[0]),int(position[1])))
+        theta+=path_angle_interval
+    thispath=myspritetools.sprite_path(path)
+    mysprite=myspritetools.Sprite("","","",directory=dir,pace=args['pace'])
+    maxsize=mysprite.maxsize()
+    sizefac=radius/maxsize*0.2
+    print(sizefac)
+    if i==0 and args['background']=='None':
+        background=mysprite.overlay(background,[0,0],frames=n_frames,path=thispath)
+    else:
+        background=mysprite.overlay(background,[0,0],path=thispath)
+    i+=1
+background_trans=myimutils.add_alpha_channel(background)
+myimutils.write_animation(background_trans,[args['delay']]*n_frames,args['outfile'])

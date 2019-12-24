@@ -1,3 +1,5 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+
 import os
 import sys
 import cv2
@@ -12,9 +14,13 @@ from scipy import stats
 #ap.add_argument("-i","--image",required=True,help="Path to the image")
 #args=vars(ap.parse_args())
 
-imlist1 = myimutils.read_imdir(sys.argv[1])
+imlist1,durations = myimutils.read_gif(sys.argv[1])
 outfile=myargutils.check_arg(sys.argv,2,'temp.png')
-image0=stats.mode(imlist1)
-image=np.squeeze(image0[0],axis=0)
-myimutils.imshow_loop(image,'Background Image','x')
+imlist_combined=[]
+for im in imlist1:
+    imlist_combined.append(mycolortools.color_combine(im))
+imagemode=stats.mode(imlist_combined)
+image=np.squeeze(imagemode[0],axis=0)
+image_mode=mycolortools.color_expand(image)
+myimutils.imshow_loop(image_mode,'Background Image','x')
 cv2.imwrite(outfile,image)
