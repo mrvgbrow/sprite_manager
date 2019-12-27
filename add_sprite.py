@@ -1,5 +1,4 @@
-#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
-
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
 import os
 import sys
@@ -32,9 +31,6 @@ outfile=args['outfile']
 size=args['size']
 rotate=args['rotate']
 
-background_trans=myimutils.add_alpha_channel(background)
-mysprite=myspritetools.Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
-position=myimutils.capture_point(background[0])
-new_frames=mysprite.overlay(background_trans,position)
+new_frames=myspritetools.add_sprite(background,game,object)
 myimutils.write_animation(new_frames,durations,outfile)
 dum=myimutils.gif_viewer(new_frames,durations,'Result')

@@ -1,4 +1,4 @@
-#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
 import math
 import cv2
@@ -6,7 +6,8 @@ import numpy as np
 import os
 import imutils
 import sys
-import myimutils
+import genutils
+import myimutils as myim
 from scipy import ndimage
 
 class sprite_path:
@@ -101,29 +102,50 @@ class Sprite:
             sprite_image=self.data[i]
             center0=self.center[i]
             shape=sprite_image.shape
+            interval=int(xyrange/2)
+            imin=0
+            dxmin=0
+            dymin=0
 
-            for x in range(xyrange):
-                for y in range(xyrange):
-                    center=(center0[0]+(int((x-xyrange/2))),center0[1]+(int((y-xyrange/2))))
+            for dx in range(-interval,interval+1):
+                for dy in range(-interval,interval+1):
+                    center=(center0[0]+dx,center0[1]+dy)
                     true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
-                    back_sub=background[true_pos[1]:true_pos[1]+shape[0],true_pos[0]:true_pos[0]+shape[1]]
+                    if myim.check_in_image(background,true_pos,shape):
+                        back_sub=myim.window_from_image(background,true_pos,shape)
+                    else:
+                        continue
                     chival=self.compute_fit(back_sub,i)
                     if chival<chimin:
                         chimin=chival
-                        dxmin=int(x-xyrange/2)
-                        dymin=int(y-xyrange/2)
+                        dxmin=dx
+                        dymin=dy
                         imin=i
-        return [chimin,dxmin,dymin,imin]
+        center=np.array([int(self.center[imin][0])+dxmin,int(self.center[imin][1])+dymin])
+        feathered_indices=self.feather_visible(2,imin)
+        back_indices=myim.shift_indices(feathered_indices,np.array(position)-center)
+        return [chimin,dxmin,dymin,imin,back_indices]
 
     def maxsize(self):
         maxsize=0
+        maxsize_x=0
+        maxsize_y=0
         for i in range(self.n_image):
+            maxhere_x=np.max(self.visible[i][1])
+            maxhere_y=np.max(self.visible[i][0])
             maxhere=np.max(self.visible[i])
             if maxhere>maxsize:
                 maxsize=maxhere
-        return maxsize
+            if maxhere_x>maxsize_x:
+                maxsize_x=maxhere_x
+            if maxhere_y>maxsize_y:
+                maxsize_y=maxhere_y
+        return (maxsize,maxsize_x,maxsize_y)
 
-    def overlay(self,background,position,frames=0,path=0):
+    def center_to_corner(position,center):
+        return (position[0]-center[0],position[1]-center[1])
+
+    def overlay(self,background,path,frames=0):
         overlay=[]
         pace_count=0
         s_index=0
@@ -131,8 +153,8 @@ class Sprite:
             frames=len(background)
         else:
             background=[background]*frames
-        if path == 0:
-            path=sprite_path([(position[0],position[1])]*frames)
+        if type(path) is tuple:
+            path=sprite_path([(path[0],path[1])]*frames)
         for i in range(frames):
             pace_count+=1
             img=self.data[s_index]
@@ -143,16 +165,29 @@ class Sprite:
             if s_index==self.n_image:
                 s_index=0
             if self.rotate>0:
-                img_new=myimutils.rotate_image(img,15*self.rotate*i)
+                img_new=myim.rotate_image(img,15*self.rotate*i)
                 center=self.center[s_index]
                 center=(center[0]+(img_new.shape[1]-img.shape[1])/2,center[1]+(img_new.shape[0]-img.shape[0])/2)
             else:
                 img_new=self.data[s_index]
                 center=self.center[s_index]
             true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
-            overlaid=myimutils.add_images(img_new,background[i],true_pos[0],true_pos[1])
-            overlay.append(overlaid)
+            if path.path[i][0]==-1:
+                overlay.append(background[i])
+            else:
+                overlay.append(myim.add_images(img_new,background[i],true_pos[0],true_pos[1]))
         return overlay
+
+    def feather_visible(self,pixels,i):
+        data=self.data[i]
+        mask=np.zeros([data.shape[0]+pixels,data.shape[1]+pixels],'float')
+        new_visible=myim.shift_indices(self.visible[i],[int(pixels/2),int(pixels/2)])
+        mask[new_visible]=1.0
+        threshold=genutils.gaussian_function(pixels)
+        blurred=cv2.GaussianBlur(mask,(7,7),1)
+        indices_new=np.where(blurred > threshold)
+        indices_new_shifted=myim.shift_indices(indices_new,[-int(pixels/2),-int(pixels/2)])
+        return indices_new_shifted
 
 def add_sprite_image(image,game,object,frame):
     visible=np.nonzero(image[:,:,3])
@@ -165,7 +200,7 @@ def add_sprite_image(image,game,object,frame):
     cv2.imwrite(spath,sprite_im)
 
 def sprite_fullpath(game,object,frame):
-    root_dir='C:/Users/sp4ce/OneDrive/Documents/Sprites/'
+    root_dir='C:/Users/sp4ce/Google Drive/Documents/Sprites/'
     if frame == "all":
         full_path=root_dir+game+"/"+object
     else:
@@ -173,3 +208,10 @@ def sprite_fullpath(game,object,frame):
 
     return full_path
 
+def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0]):
+    if (images[0].shape[2]==3):
+        images=myim.add_alpha_channel(images)
+    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
+    if type(path)==[0]:
+        path=myim.capture_point(images[0])
+    return mysprite.overlay(images,path)

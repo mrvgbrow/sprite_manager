@@ -1,4 +1,4 @@
-#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+#!/C/uSERs/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
 import os
 import sys

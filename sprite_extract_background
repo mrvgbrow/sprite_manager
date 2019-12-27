@@ -1,4 +1,4 @@
-#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
 import os
 import sys
@@ -63,40 +63,3 @@ while True:
         myspritetools.add_sprite_image(image_trans,game,object,frame)
         break
 
-sys.exit()
-
-i=0
-corner1=box[0]
-corner2=box[1]
-sizex=corner2[0]-corner1[0]
-sizey=corner2[1]-corner1[1]
-center=myimutils.sprite_center(mask) 
-old_mask=get_mask_box(mask,center,sizex,sizey)
-for im in imlist1:
-    numstr="{0:04d}".format(i)
-    [image,mask,new_mask,diff,newcenter]=iter_grabcut(im,corner1,corner2,iter,sizex,sizey,old_mask)
-    if diff>threshold:        
-        [image,mask,new_mask,diff,newcenter]=iter_grabcut(im,corner1+(-1,0),corner2+(1,0),iter,sizex,sizey,old_mask)
-    if diff>threshold:        
-        [image,mask,new_mask,diff,newcenter]=iter_grabcut(im,corner1+(0,-1),corner2+(0,1),iter,sizex,sizey,old_mask)
-    if diff>threshold:        
-        [image,mask,new_mask,diff,newcenter]=iter_grabcut(im,corner1+(-1,-1),corner2+(-1,-1),iter,sizex,sizey,old_mask)
-    if diff>threshold:        
-        [image,mask,new_mask,diff,newcenter]=iter_grabcut(im,corner1+(1,1),corner2+(1,1),iter,sizex,sizey,old_mask)
-
-    print(str(diff),numstr)
-    corner1=(int(round(newcenter[1]-sizex/2)),int(round(newcenter[0]-sizey/2)))
-    corner2=(int(round(newcenter[1]+sizex/2)),int(round(newcenter[0]+sizey/2)))
-    if corner2[0]>image.shape[1]-1 or corner2[1]>image.shape[0]-1:
-        break
-    if corner1[0]<0 or corner1[1]<0:
-        break
-    image_trans=myimutils.maketransparent_withmask(image,mask)
-    cv2.rectangle(image, corner1, corner2, (0, 255, 0), 2)
-    cv2.imwrite(sys.argv[2]+"/"+numstr+".png",image)
-    i+=1
-    if diff<threshold:
-        old_mask=new_mask
-
-cv2.destroyAllWindows()
-sys.exit()

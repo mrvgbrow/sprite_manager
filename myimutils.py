@@ -1,5 +1,3 @@
-#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
-
 import math
 import cv2
 import numpy as np
@@ -11,12 +9,10 @@ from PIL import Image
 
 def add_images(image2,image1,x,y):
     x1,x2,y1,y2=get_overlap(image1,image2,x,y)
-    alpha_2=image2[:y2-y1,:x2-x1,3]/255.0
-    alpha_1=1.0-alpha_2
     image3=image1.copy()
     for c in range(0,3):
-        image3[y1:y2,x1:x2,c]=(alpha_2*image2[:y2-y1,:x2-x1,c]+alpha_1*image1[y1:y2,x1:x2,c])
-    return image3
+        image3[y1:y2,x1:x2,c]=(image2[:y2-y1,:x2-x1,3]/255.0*image2[:y2-y1,:x2-x1,c]+(1.0-image2[:y2-y1,:x2-x1,3])*image1[y1:y2,x1:x2,c])
+    return image3.astype('uint8')
 
 def add_alpha_channel(images):
     images_trans=[]
@@ -85,6 +81,15 @@ def click_mouseover(event,x,y,flags,param):
     
     if event == cv2.EVENT_MOUSEMOVE:
         refPt=(x,y)
+
+def click_mouseover(event,x,y,flags,param):
+    global refPt,clicked
+    
+    clicked=0
+    if event == cv2.EVENT_MOUSEMOVE:
+        refPt=(x,y)
+    if event == cv2.EVENT_LBUTTONDOWN:
+        clicked=1
 
 def clicksave(event,x,y,flags,param):
     global clicked,pointlist
@@ -158,7 +163,7 @@ def capture_box(image):
     boxcorners=[]
     cornertemp=[]
 
-    cv2.namedWindow("image")
+    cv2.namedWindow("image",flags=cv2.WINDOW_NORMAL)
     cv2.setMouseCallback("image",click_rectangle)
 
     while True:     
@@ -246,18 +251,21 @@ def mask_replace(image,mask,color):
 
 def write_animation(list_np_array,durations,outfile):
     new_array=[]
+    if list_np_array[0].shape[2]==4:
+        color_dims=[2,1,0,3]
+    else:
+        color_dims=[2,1,0]
     for im in list_np_array:
-        im=im[:,:,[2,1,0,3]]
+        im=im[:,:,color_dims]
         new_array.append(Image.fromarray(im.astype('uint8')))
     new_array[0].save(outfile,save_all=True,append_images=new_array[1:],duration=durations,loop=0)
 
-def gif_viewer(images,durations,title):
+def gif_viewer(images,durations,title,pause=0):
     global refPt
 
     refPt=(0,0)
     i=0
     speed_factor=1.0
-    pause=0
     info_window=np.zeros((40,500,3))
     print(images[0].shape)
     cv2.namedWindow(title)
@@ -314,3 +322,50 @@ def rotate_image(mat, angle):
     rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
     return rotated_mat
 
+def check_in_image(image,refPt,shape):
+    if (refPt[0] < 0 or refPt[0]+shape[1] > image.shape[1]):
+        return False
+    if (refPt[1] < 0 or refPt[1]+shape[0] > image.shape[0]):
+        return False
+    return True
+
+def window_from_image(image,position,shape):
+    return image[position[1]:position[1]+shape[0],position[0]:position[0]+shape[1]]
+
+def shift_indices(indices,shift):
+    return (indices[0]+shift[1],indices[1]+shift[0])
+
+def trim_to_fit(image,indices):
+    index_indices=np.where((indices[0]>=0) & (indices[0]<image.shape[0]) & (indices[1]>=0) & (indices[1]<image.shape[1]))
+    y=indices[0][index_indices]
+    x=indices[1][index_indices]
+    return (y,x)
+
+def pix_edit(image,title):
+    global refPt
+
+    refPt=(0,0)
+    clicked=0
+    color=np.array([255,255,255,255])
+    empty=np.array([0,0,0,0])
+    info_window=np.zeros((40,500,3))
+    print(images[0].shape)
+    cv2.namedWindow(title,flags=cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback(title,click_mouseover)
+    while True:
+        info_window*=0
+        info_string="(x,y) = "+str(refPt)+' color = '+str(color)
+        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        thisim=images[i]
+        cv2.imshow(title,thisim.astype('uint8'))
+        cv2.imshow('Info',info_window)
+        wait=int(durations[i]*speed_factor)
+        key = cv2.waitKey(wait) & 0xFF
+        if clicked==1 and thisim[refPt[1],refPt[2]]!=color:
+            thisim[refPt[1],refPt[0]]=color
+        elif clicked==1 and thisim[refPt[1],refPt[2]==color:
+            thisim[refPt[1],refPt[0]]=empty
+        if key==ord('x'):
+            break
+    cv2.destroyAllWindows()
+    return i

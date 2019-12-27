@@ -1,3 +1,4 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
 import math
 import cv2

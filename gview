@@ -1,10 +1,16 @@
-#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python37/python
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
+import argparse
 import myimutils
 import sys
 import os
 from PIL import Image
 import cv2
 
-ims,durations=myimutils.read_gif(sys.argv[1])
-dum=myimutils.gif_viewer(ims,durations,sys.argv[1])
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input file",type=str)
+ap.add_argument("-p","--pause",required=False,help="Pause the animation on load?",type=int,default=0)
+args=vars(ap.parse_args())
+
+ims,durations=myimutils.read_gif(args['infile'])
+dum=myimutils.gif_viewer(ims,durations,args['infile'],pause=args['pause'])

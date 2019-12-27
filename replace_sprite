@@ -1,0 +1,43 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import sys
+import cv2
+import numpy as np
+import argparse
+import myimutils
+import myargutils
+import myspritetools
+import genutils
+import math
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input background file",type=str)
+ap.add_argument("game",help="Game of the old sprite",type=str)
+ap.add_argument("object",help="Object in the game represented by the old sprite",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+ap.add_argument("-f","--frame",required=False,help="The particular frame in the sprite sequence",type=str,default='all')
+ap.add_argument("-r","--range",required=False,help="Range of position offsets to consider",type=int,default=10)
+ap.add_argument("-p","--pace",required=False,help="Speed at which the sprite sequence moves",default=1,type=int)
+ap.add_argument("-s","--size",required=False,help="The sprite size scale factor",type=float,default=1.0)
+ap.add_argument("-t","--rotate",required=False,help="The sprite rotation rate",type=float,default=0.0)
+ap.add_argument("game2",help="Game of the new sprite",type=str)
+ap.add_argument("object2",help="Object in the game represented by the new sprite",type=str)
+args=vars(ap.parse_args())
+
+(images,durations)=myimutils.read_gif(args['infile'])
+outfile=args['outfile']
+mysprite=myspritetools.Sprite(args['game'],args['object'],'all')
+
+init_pos=myimutils.capture_point(images[0])
+path=[]
+for i in range(len(images)):
+    chimin,dx,dy,imnum,back_indices=mysprite.fit(images[i],init_pos,args['range'])
+    back_indices=myimutils.trim_to_fit(images[i],back_indices)
+    images[i][back_indices]=0
+    init_pos=(init_pos[0]-dx,init_pos[1]-dy)
+    path.append(init_pos)
+
+object_path=myspritetools.sprite_path(path)
+images=myspritetools.add_sprite(images,args['game2'],args['object2'],path=object_path,pace=args['pace'],size=args['size'],rotate=args['rotate'])
+myimutils.write_animation(images,durations,args['outfile'])
+dum=myimutils.gif_viewer(images,durations,'Sprite Replaced')

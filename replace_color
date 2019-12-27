@@ -1,0 +1,39 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import os
+import sys
+import cv2
+import numpy as np
+import argparse
+import myimutils
+import myargutils
+import mycolortools
+
+#ap = argparse.ArgumentParser()
+#ap.add_argument("-i","--image",required=True,help="Path to the image")
+#args=vars(ap.parse_args())
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input background file",type=str)
+ap.add_argument("-f","--fuzz",required=False,help="Uncertainty in color",type=int,default=5)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+args=vars(ap.parse_args())
+
+imlist1,durations = myimutils.read_gif(args['infile'])
+image1=imlist1[0]
+fuzz=args['fuzz']
+
+
+color_in=mycolortools.imshow_get_color(image1,'Select Color to Replace','x')
+color_out=mycolortools.imshow_get_color(image1,'Select Color to Replace With','x')
+
+new_frames=[]
+for im in imlist1:
+    indices=mycolortools.select_color(im,color_in,fuzz)
+    mask=myimutils.make_mask(indices,im.shape)
+    image_masked=myimutils.mask_replace(im,mask,color_out)
+    new_frames.append(image_masked)
+
+myimutils.write_animation(new_frames,durations,args['outfile'])
+dum=myimutils.gif_viewer(new_frames,durations,'Result')
+

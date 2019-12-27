@@ -1,0 +1,48 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import sys
+import cv2
+import numpy as np
+import argparse
+import myimutils
+import myargutils
+import myspritetools
+import genutils
+import math
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input background file",type=str)
+ap.add_argument("game",help="Game of the new sprite",type=str)
+ap.add_argument("object",help="Object in the game represented by the sprite",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.dat')
+ap.add_argument("-f","--frame",required=False,help="The particular frame in the sprite sequence",type=str,default='all')
+ap.add_argument("-r","--range",required=False,help="Range of position offsets to consider",type=int,default=10)
+args=vars(ap.parse_args())
+
+(images,durations)=myimutils.read_gif(args['infile'])
+outfile=args['outfile']
+mysprite=myspritetools.Sprite(args['game'],args['object'],'all')
+
+init_pos=myimutils.capture_point(images[0])
+newims=[]
+for i in range(len(images)):
+    chimin,dx,dy,imnum,back_indices=mysprite.fit(images[i],init_pos,args['range'])
+    newim=images[i]
+    back_indices=myimutils.trim_to_fit(newim,back_indices)
+    newim[back_indices]=0
+    newims.append(newim)
+    init_pos=(init_pos[0]-dx,init_pos[1]-dy)
+
+dum=myimutils.gif_viewer(newims,durations,'Sprite Removed')
+sys.exit()
+while True:
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord("a") or key == ord("r") or key == ord("s"):
+        break
+    if key == ord("a"):
+        break
+    if key == ord("s"):
+        myspritetools.add_sprite_image(image_trans,game,object,frame)
+        break
+
+sys.exit()

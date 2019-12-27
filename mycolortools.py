@@ -59,5 +59,5 @@ def imshow_get_color(image,title,exit_char):
             color= image[refPt[1],refPt[0],:]
             break
     cv2.destroyAllWindows()
-    return color
+    return (color[0],color[1],color[2])
             
