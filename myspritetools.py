@@ -69,6 +69,13 @@ class Sprite:
                 self.data[i]=image
             self.recenter()
 
+    def save_rotations(self,interval):
+        for o in range(interval:360:interval):
+            for i in range(self.n_image):
+                self.data.append(myim.rotate_image(img,o))
+        self.n_image=len(self.data)
+        self.recenter()
+
     def pad(self,x,y):
         for i in range(self.n_image):
             new_im=np.zeros([y,x,4],'uint8')
@@ -98,14 +105,14 @@ class Sprite:
 
     def fit(self,background,position,xyrange):
         chimin=1.0e30
+        interval=int(xyrange/2)
+        imin=0
+        dxmin=0
+        dymin=0
         for i in range(self.n_image):
             sprite_image=self.data[i]
             center0=self.center[i]
             shape=sprite_image.shape
-            interval=int(xyrange/2)
-            imin=0
-            dxmin=0
-            dymin=0
 
             for dx in range(-interval,interval+1):
                 for dy in range(-interval,interval+1):
@@ -212,6 +219,6 @@ def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0
     if (images[0].shape[2]==3):
         images=myim.add_alpha_channel(images)
     mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
-    if type(path)==[0]:
+    if path==[0]:
         path=myim.capture_point(images[0])
     return mysprite.overlay(images,path)

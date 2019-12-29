@@ -82,14 +82,15 @@ def click_mouseover(event,x,y,flags,param):
     if event == cv2.EVENT_MOUSEMOVE:
         refPt=(x,y)
 
-def click_mouseover(event,x,y,flags,param):
-    global refPt,clicked
+def click_edit(event,x,y,flags,param):
+    global refPt,clicked,clicked2
     
-    clicked=0
     if event == cv2.EVENT_MOUSEMOVE:
         refPt=(x,y)
     if event == cv2.EVENT_LBUTTONDOWN:
         clicked=1
+    if event == cv2.EVENT_RBUTTONDOWN:
+        clicked2=1
 
 def clicksave(event,x,y,flags,param):
     global clicked,pointlist
@@ -249,7 +250,7 @@ def mask_replace(image,mask,color):
     image[mask_indices[0],mask_indices[1],2] = color[2]
     return image
 
-def write_animation(list_np_array,durations,outfile):
+def convert_to_PIL(list_np_array):
     new_array=[]
     if list_np_array[0].shape[2]==4:
         color_dims=[2,1,0,3]
@@ -258,7 +259,10 @@ def write_animation(list_np_array,durations,outfile):
     for im in list_np_array:
         im=im[:,:,color_dims]
         new_array.append(Image.fromarray(im.astype('uint8')))
-    new_array[0].save(outfile,save_all=True,append_images=new_array[1:],duration=durations,loop=0)
+    return new_array
+
+def write_animation(pil_array,durations,outfile):
+    pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],duration=durations,loop=0)
 
 def gif_viewer(images,durations,title,pause=0):
     global refPt
@@ -341,31 +345,45 @@ def trim_to_fit(image,indices):
     x=indices[1][index_indices]
     return (y,x)
 
-def pix_edit(image,title):
-    global refPt
+def pix_edit(image,title='Image'):
+    global refPt,clicked,clicked2
 
     refPt=(0,0)
     clicked=0
+    clicked2=0
     color=np.array([255,255,255,255])
     empty=np.array([0,0,0,0])
     info_window=np.zeros((40,500,3))
-    print(images[0].shape)
     cv2.namedWindow(title,flags=cv2.WINDOW_NORMAL)
-    cv2.setMouseCallback(title,click_mouseover)
+    cv2.setMouseCallback(title,click_edit)
     while True:
         info_window*=0
         info_string="(x,y) = "+str(refPt)+' color = '+str(color)
         cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
-        thisim=images[i]
-        cv2.imshow(title,thisim.astype('uint8'))
+        cv2.imshow(title,image.astype('uint8'))
         cv2.imshow('Info',info_window)
-        wait=int(durations[i]*speed_factor)
-        key = cv2.waitKey(wait) & 0xFF
-        if clicked==1 and thisim[refPt[1],refPt[2]]!=color:
-            thisim[refPt[1],refPt[0]]=color
-        elif clicked==1 and thisim[refPt[1],refPt[2]==color:
-            thisim[refPt[1],refPt[0]]=empty
+        key = cv2.waitKey(1) & 0xFF
+        if clicked==1 and not np.array_equal(image[refPt[1],refPt[0]],color):
+            image[refPt[1],refPt[0]]=color
+            clicked=0
+        elif clicked==1 and np.array_equal(image[refPt[1],refPt[0]],color):
+            image[refPt[1],refPt[0]]=empty
+            clicked=0
+        if clicked2==1:
+            color=np.array(image[refPt[1],refPt[0]])
+            clicked2=0
         if key==ord('x'):
-            break
-    cv2.destroyAllWindows()
-    return i
+            cv2.destroyAllWindows()
+            return 0
+        if key==ord('s'):
+            cv2.destroyAllWindows()
+            return image
+
+def grid_to_indices(xv,yv):
+    xv=np.round(xv-np.min(np.round(xv)))
+    yv=np.round(yv-np.min(np.round(yv)))
+    return([xv.astype('int'),yv.astype('int')])
+
+#def image_map(image,x1,y1,x2,y2):
+#    image_new=np.zeros([
+

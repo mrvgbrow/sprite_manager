@@ -1,0 +1,20 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import argparse
+import numpy as np
+import cv2
+import sys
+import myimutils as myim
+
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input background file",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.png')
+args=vars(ap.parse_args())
+
+image=cv2.imread(args['infile'],cv2.IMREAD_UNCHANGED)
+
+newim=myim.pix_edit(image,title=args['infile'])
+if type(newim) is not int:
+    cv2.imwrite(args['outfile'],newim)

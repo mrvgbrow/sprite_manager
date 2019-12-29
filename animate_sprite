@@ -1,0 +1,35 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import argparse
+import numpy as np
+import cv2
+import sys
+import myimutils as myim
+import myspritetools as myspr
+
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the starting input image",type=str)
+ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+ap.add_argument("object",help="Name of the new sprite sequence",type=str)
+ap.add_argument("-p","--pad",required=False,help="Pad each dimension with this many transparent pixels",default=0,type=int)
+args=vars(ap.parse_args())
+
+output_dir=myspr.sprite_fullpath(args['game'],args['object'],'all')
+myim.make_outdir(output_dir,1)
+pad=args['pad']
+
+image=cv2.imread(args['infile'],cv2.IMREAD_UNCHANGED)
+if pad>0:
+    image=cv2.copyMakeBorder(image,top=pad,bottom=pad,left=pad,right=pad,borderType=cv2.BORDER_CONSTANT,value=[0,0,0,0])
+
+i=0
+while True:
+    image=myim.pix_edit(image,title=args['infile'])
+    if type(image) is not int:
+        outfile_name=myim.imfile_name(i,output_dir)
+        cv2.imwrite(outfile_name,image)
+        i+=1
+    else:
+        break
