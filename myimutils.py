@@ -387,3 +387,8 @@ def grid_to_indices(xv,yv):
 #def image_map(image,x1,y1,x2,y2):
 #    image_new=np.zeros([
 
+def fill_square(image,position,halfside):
+    for i in range(-halfside,halfside+1):
+        for j in range(-halfside,halfside+1):
+            for c in range(0,3):
+                image[position[1]+i,position[0]+j,c]=255

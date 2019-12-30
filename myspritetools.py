@@ -6,7 +6,7 @@ import numpy as np
 import os
 import imutils
 import sys
-import genutils
+import genutils as genu
 import myimutils as myim
 from scipy import ndimage
 
@@ -21,6 +21,34 @@ class sprite_path:
             self.angles=self.path*0.0
         else:
             self.angles=np.array(angles)
+    def smooth(self,scale):
+        new_path=[]
+        for i in range(len(self.path)):
+            xav=0.0
+            yav=0.0
+            functot=0.0
+            funcref=0.0
+            for k in range(2*scale+1):
+                funcref+=genu.gaussian_function(k/scale)
+            for j in range(max(0,i-2*scale),min(len(self.path),i+2*scale+1)):
+                if self.path[j][0]>=0: 
+                    xav+=genu.gaussian_function((i-j)/scale)*self.path[j][0]
+                    yav+=genu.gaussian_function((i-j)/scale)*self.path[j][1]
+                    functot+=genu.gaussian_function((i-j)/scale)
+            if functot>0.8*funcref:
+                xval=int(round(xav/functot))
+                yval=int(round(yav/functot))
+            else:
+                xval=-1
+                yval=-1
+            new_path.append((xval,yval))
+        self.path=new_path
+    
+    def overlay(self,background,width=1):
+        for i in range(len(background)):
+            for j in range(i+1,len(background)):
+                myim.fill_square(background[j],(self.path[i][0],self.path[i][1]),width)
+        return background
 
 class Sprite:
     def __init__(self,game,object,frame,pace=1,size=1,rotate=0,directory=''):
@@ -70,9 +98,9 @@ class Sprite:
             self.recenter()
 
     def save_rotations(self,interval):
-        for o in range(interval:360:interval):
+        for o in range(interval,360,interval):
             for i in range(self.n_image):
-                self.data.append(myim.rotate_image(img,o))
+                self.data.append(myim.rotate_image(self.data[i],o))
         self.n_image=len(self.data)
         self.recenter()
 
@@ -113,8 +141,12 @@ class Sprite:
             sprite_image=self.data[i]
             center0=self.center[i]
             shape=sprite_image.shape
+            if chimin==0:
+                break
 
             for dx in range(-interval,interval+1):
+                if chimin==0:
+                    break
                 for dy in range(-interval,interval+1):
                     center=(center0[0]+dx,center0[1]+dy)
                     true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
@@ -128,8 +160,10 @@ class Sprite:
                         dxmin=dx
                         dymin=dy
                         imin=i
+                        if chimin==0:
+                            break
         center=np.array([int(self.center[imin][0])+dxmin,int(self.center[imin][1])+dymin])
-        feathered_indices=self.feather_visible(2,imin)
+        feathered_indices=self.feather_visible(0,imin)
         back_indices=myim.shift_indices(feathered_indices,np.array(position)-center)
         return [chimin,dxmin,dymin,imin,back_indices]
 
@@ -190,7 +224,7 @@ class Sprite:
         mask=np.zeros([data.shape[0]+pixels,data.shape[1]+pixels],'float')
         new_visible=myim.shift_indices(self.visible[i],[int(pixels/2),int(pixels/2)])
         mask[new_visible]=1.0
-        threshold=genutils.gaussian_function(pixels)
+        threshold=genu.gaussian_function(pixels)
         blurred=cv2.GaussianBlur(mask,(7,7),1)
         indices_new=np.where(blurred > threshold)
         indices_new_shifted=myim.shift_indices(indices_new,[-int(pixels/2),-int(pixels/2)])
