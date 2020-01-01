@@ -1,0 +1,30 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.gif')
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_gif(args['infile'])
+
+i=0
+for i in range(len(imlist1)):
+    imlist1[i]=cv2.cvtColor(imlist1[i],cv2.COLOR_BGR2HSV)
+    imlist1[i]=cv2.GaussianBlur(imlist1[i],(7,7),1)
+    indices=np.where(cv2.Canny(imlist1[i],0,200)==0)
+    indices2=np.where(cv2.Canny(imlist1[i],0,200)>0)
+    indices2=(indices2[0],indices2[1],2)
+    imlist1[i][indices]=[0,0,0]
+    imlist1[i][indices2]=255
+    imlist1[i]=cv2.cvtColor(imlist1[i],cv2.COLOR_HSV2BGR)
+
+myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'])

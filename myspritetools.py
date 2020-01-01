@@ -1,5 +1,7 @@
 #!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
+import re
+import glob
 import math
 import cv2
 import numpy as np
@@ -67,6 +69,7 @@ class Sprite:
             self.read_dir(self.full_path)
         else:
             self.read_image(self.full_path)
+        self.sequence=range(len(self.data))
         self.resize(size)
         
     def read_image(self,path):
@@ -82,9 +85,9 @@ class Sprite:
         if os.path.isdir(path)==False:
             print("No such sprite directory")
             return
-        files=os.listdir(path)
+        files=glob.glob(path+'/'+'*.png')
         for thisim in files:
-            image=cv2.imread(path+"/"+thisim,cv2.IMREAD_UNCHANGED)
+            image=cv2.imread(thisim,cv2.IMREAD_UNCHANGED)
             self.data.append(image)
         self.n_image=len(files)
         self.recenter()
@@ -163,7 +166,7 @@ class Sprite:
                         if chimin==0:
                             break
         center=np.array([int(self.center[imin][0])+dxmin,int(self.center[imin][1])+dymin])
-        feathered_indices=self.feather_visible(0,imin)
+        feathered_indices=self.feather_visible(2,imin)
         back_indices=myim.shift_indices(feathered_indices,np.array(position)-center)
         return [chimin,dxmin,dymin,imin,back_indices]
 
@@ -183,11 +186,31 @@ class Sprite:
                 maxsize_y=maxhere_y
         return (maxsize,maxsize_x,maxsize_y)
 
-    def center_to_corner(position,center):
+    def read_sequence(self,name):
+        f=open(self.full_path+'/sequence.txt','r')
+        found=0
+        for line in f:
+            tag=line.split(":")
+            if found==1 and tag[0].strip()=='':
+                break
+            if tag[0]=='Name':
+                namehere=tag[1].strip()
+                if namehere==name:
+                    found=1
+                    continue
+            if tag[0]=='Sequence' and found==1:
+                sequence=tag[1].split(',')
+                self.sequence=[]
+                for im in sequence:
+                    self.sequence.append(int(im))
+        if (found==0):
+            print('Sequence '+name+' not found')
+        print(self.sequence)
+
+    def center_to_corner(self,position,center):
         return (position[0]-center[0],position[1]-center[1])
 
     def overlay(self,background,path,frames=0):
-        overlay=[]
         pace_count=0
         s_index=0
         if frames==0:
@@ -198,26 +221,27 @@ class Sprite:
             path=sprite_path([(path[0],path[1])]*frames)
         for i in range(frames):
             pace_count+=1
-            img=self.data[s_index]
+            img=self.data[self.sequence[s_index]]
             position=path.path[i]
             if pace_count==self.pace:
                 pace_count=0
                 s_index+=1
-            if s_index==self.n_image:
+            if s_index==len(self.sequence):
                 s_index=0
             if self.rotate>0:
                 img_new=myim.rotate_image(img,15*self.rotate*i)
-                center=self.center[s_index]
+                center=self.center[self.sequence[s_index]]
                 center=(center[0]+(img_new.shape[1]-img.shape[1])/2,center[1]+(img_new.shape[0]-img.shape[0])/2)
             else:
-                img_new=self.data[s_index]
-                center=self.center[s_index]
+                img_new=self.data[self.sequence[s_index]]
+                center=self.center[self.sequence[s_index]]
             true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
-            if path.path[i][0]==-1:
-                overlay.append(background[i])
-            else:
-                overlay.append(myim.add_images(img_new,background[i],true_pos[0],true_pos[1]))
-        return overlay
+            if path.path[i][0]>=0:
+                background[i]=myim.add_images(img_new,background[i],true_pos[0],true_pos[1])
+        return background
+
+    def nframes(self):
+        return len(self.sequence)*self.pace
 
     def feather_visible(self,pixels,i):
         data=self.data[i]
@@ -249,10 +273,24 @@ def sprite_fullpath(game,object,frame):
 
     return full_path
 
-def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0]):
+def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None'):
     if (images[0].shape[2]==3):
         images=myim.add_alpha_channel(images)
     mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
+    if sequence != 'None':
+        mysprite.read_sequence(sequence)
+    if path==[0]:
+        path=myim.capture_point(images[0])
+    return mysprite.overlay(images,path)
+
+def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None'):
+    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
+    if sequence != 'None':
+        mysprite.read_sequence(sequence)
+    size,size_x,size_y=mysprite.maxsize()
+    blank_size=int(size*1.5)
+    images=[np.zeros([blank_size,blank_size,4],'uint8')]*mysprite.nframes()
+    print(mysprite.nframes())
     if path==[0]:
         path=myim.capture_point(images[0])
     return mysprite.overlay(images,path)

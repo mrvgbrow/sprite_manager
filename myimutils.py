@@ -15,13 +15,11 @@ def add_images(image2,image1,x,y):
     return image3.astype('uint8')
 
 def add_alpha_channel(images):
-    images_trans=[]
     x_size=images[0].shape[0]
     y_size=images[0].shape[1]
-    for im in images:
-        image=np.dstack((im,np.ones((x_size,y_size),'byte')*255))
-        images_trans.append(image)
-    return images_trans
+    for i in range(len(images)):
+        images[i]=np.dstack((images[i],np.ones((x_size,y_size),'uint8')*255))
+    return images
 
 def get_overlap(image1,image2,x,y):
     xlim=image1.shape[1]
@@ -36,6 +34,7 @@ def get_overlap(image1,image2,x,y):
 
 def read_gif(infile):
     im=Image.open(infile)
+    print(im.info)
     allims=[]
     durations=[]
     for i in range(im.n_frames):
@@ -56,7 +55,7 @@ def read_imdir(dir):
 #        deanimate_gif(dir,'temp')
 #        dir='temp'
     if extension=='.png':
-        return [cv2.imread(dir,cv2.IMREAD_UNCHANGED)]
+        return ([cv2.imread(dir,cv2.IMREAD_UNCHANGED)],[0])
     elif os.path.isdir(dir):
         files=os.listdir(dir)
         imlist=[]
@@ -252,17 +251,44 @@ def mask_replace(image,mask,color):
 
 def convert_to_PIL(list_np_array):
     new_array=[]
+    if len(list_np_array[0].shape)==2:
+        for im in list_np_array:
+            new_array.append(Image.fromarray(im.astype('uint8')))
+        return new_array
     if list_np_array[0].shape[2]==4:
         color_dims=[2,1,0,3]
     else:
         color_dims=[2,1,0]
     for im in list_np_array:
         im=im[:,:,color_dims]
-        new_array.append(Image.fromarray(im.astype('uint8')))
+        new_array.append(Image.fromarray(im.astype('uint8'),mode='RGB'))
     return new_array
 
 def write_animation(pil_array,durations,outfile):
-    pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],duration=durations,loop=0)
+    for i in range(len(pil_array)):
+        pil_array[i]=pil_array[i].convert("P")
+    pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],duration=durations,loop=0,palette='P')
+#    imageio.mimsave(outfile,pil_array)
+
+def img_viewer(image,title):
+    global refPt
+
+    refPt=(0,0)
+    info_window=np.zeros((40,500,3))
+    print(image.shape)
+    cv2.namedWindow(title)
+    cv2.setMouseCallback(title,click_mouseover)
+    while True:
+        info_window*=0
+        info_string='(x,y) = '+str(refPt)
+        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        cv2.imshow(title,image.astype('uint8'))
+        cv2.imshow('Info',info_window)
+        wait=1
+        key = cv2.waitKey(wait) & 0xFF
+        if key==ord('x'):
+            break
+    cv2.destroyAllWindows()
 
 def gif_viewer(images,durations,title,pause=0):
     global refPt

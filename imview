@@ -1,0 +1,15 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import argparse
+import myimutils
+import sys
+import os
+from PIL import Image
+import cv2
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input file",type=str)
+args=vars(ap.parse_args())
+
+im=cv2.imread(args['infile'],cv2.IMREAD_UNCHANGED)
+myimutils.img_viewer(im,args['infile'])

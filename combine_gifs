@@ -1,0 +1,47 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile1",help="Name of the first input animation",type=str)
+ap.add_argument("infile2",help="Name of the second input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='temp.gif')
+ap.add_argument("-d","--duration",required=False,help="The frame delay (must be constant)",type=int,default=1)
+args=vars(ap.parse_args())
+
+imlist1,durations1 = myim.read_gif(args['infile1'])
+imlist2,durations2 = myim.read_gif(args['infile2'])
+shape1=imlist1[0].shape
+shape2=imlist2[0].shape
+shape_new=(max(shape1[0],shape2[0]),shape1[1]+shape2[1],3)
+print(shape_new)
+
+i=0
+j=0
+imlist3=[]
+for k in range(max(len(imlist1),len(imlist2))):
+    img_new=np.zeros(shape_new,'uint8')
+    img_new[0:shape1[0],0:shape1[1],0:3]=imlist1[i]
+    img_new[0:shape2[0],shape1[1]:shape1[1]+shape2[1],0:3]=imlist2[j]
+    imlist3.append(img_new)
+    if i<len(imlist1)-1:
+        i+=1
+    else:
+        i=0
+    if j<len(imlist2)-1:
+        j+=1
+    else:
+        j=0
+
+imlist1=None
+imlist2=None
+durations3=[args['duration']]*len(imlist3)
+
+myim.gif_viewer(imlist3,durations3,'Result')
+imlist3=myim.convert_to_PIL(imlist3)
+myim.write_animation(imlist3,durations3,args['outfile'])
