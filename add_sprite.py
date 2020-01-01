@@ -18,8 +18,10 @@ ap.add_argument("-p","--pace",required=False,help="Speed at which the sprite seq
 ap.add_argument("game",help="Name of the game the sprite is from",type=str)
 ap.add_argument("object",help="Name of the object the sprite represents",type=str)
 ap.add_argument("-f","--frame",required=False,help="The particular frame in the sprite sequence",type=str,default='all')
+ap.add_argument("-c","--center",required=False,help="Center the sprite in the background image",type=int,default=0)
 ap.add_argument("-s","--size",required=False,help="The sprite size scale factor",type=float,default=1.0)
 ap.add_argument("-q","--sequence",required=False,help="Name of the animation sequence to use",type=str,default='None')
+ap.add_argument("-a","--anchor",required=False,help="Where to anchor the sprite sequence (0: center, 1: bottom, 3: top)",type=int,default=0)
 ap.add_argument("-r","--rotate",required=False,help="The sprite rotation rate",type=float,default=0.0)
 args=vars(ap.parse_args())
 
@@ -31,6 +33,8 @@ outfile=args['outfile']
 size=args['size']
 rotate=args['rotate']
 sequence=args['sequence']
+anchor=args['anchor']
+center=args['center']
 
 if args['infile'] != 'blank':
     (background,durations)=myimutils.read_imdir(args['infile'])
@@ -38,10 +42,10 @@ if args['infile'] != 'blank':
         background=[background[0]]*100
 
 if args['infile']=='blank':
-    new_frames=myspritetools.add_sprite_blank(game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence)
+    new_frames=myspritetools.add_sprite_blank(game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center)
     durations=[10]*len(new_frames)
 else:
-    new_frames=myspritetools.add_sprite(background,game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence)
+    new_frames=myspritetools.add_sprite(background,game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center)
 dum=myimutils.gif_viewer(new_frames,durations,'Result')
 new_frames=myimutils.convert_to_PIL(new_frames)
 myimutils.write_animation(new_frames,durations,outfile)

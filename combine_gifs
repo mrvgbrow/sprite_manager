@@ -24,6 +24,7 @@ print(shape_new)
 i=0
 j=0
 imlist3=[]
+print(len(imlist1),len(imlist2))
 for k in range(max(len(imlist1),len(imlist2))):
     img_new=np.zeros(shape_new,'uint8')
     img_new[0:shape1[0],0:shape1[1],0:3]=imlist1[i]

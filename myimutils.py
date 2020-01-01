@@ -34,7 +34,6 @@ def get_overlap(image1,image2,x,y):
 
 def read_gif(infile):
     im=Image.open(infile)
-    print(im.info)
     allims=[]
     durations=[]
     for i in range(im.n_frames):
@@ -261,7 +260,7 @@ def convert_to_PIL(list_np_array):
         color_dims=[2,1,0]
     for im in list_np_array:
         im=im[:,:,color_dims]
-        new_array.append(Image.fromarray(im.astype('uint8'),mode='RGB'))
+        new_array.append(Image.fromarray(im.astype('uint8')))
     return new_array
 
 def write_animation(pil_array,durations,outfile):
@@ -297,7 +296,7 @@ def gif_viewer(images,durations,title,pause=0):
     i=0
     speed_factor=1.0
     info_window=np.zeros((40,500,3))
-    print(images[0].shape)
+    print(images[0].shape,len(images))
     cv2.namedWindow(title)
     cv2.setMouseCallback(title,click_mouseover)
     while True:
@@ -322,6 +321,7 @@ def gif_viewer(images,durations,title,pause=0):
         if key==ord('p'):
             pause=(pause+1)%2
         if pause==0:
+            print(i,len(images),(i+1)%len(images),durations[i])
             i=(i+1)%len(images)
     cv2.destroyAllWindows()
     return i

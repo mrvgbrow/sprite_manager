@@ -53,13 +53,14 @@ class sprite_path:
         return background
 
 class Sprite:
-    def __init__(self,game,object,frame,pace=1,size=1,rotate=0,directory=''):
+    def __init__(self,game,object,frame,pace=1,size=1,rotate=0,directory='',anchor=0):
         self.data=[]
         self.visible=[]
         self.center=[]
         self.pace=pace
         self.size=size
         self.rotate=rotate
+        self.anchor=anchor
         if directory != '':
             self.full_path=directory
             frame='all'
@@ -96,7 +97,7 @@ class Sprite:
         if size != 1.0:
             for i in range(self.n_image):
                 s_image=self.data[i]
-                image=cv2.resize(s_image,(0,0),fx=size,fy=size,interpolation=cv2.INTER_LINEAR)
+                image=cv2.resize(s_image,(0,0),fx=size,fy=size,interpolation=cv2.INTER_NEAREST)
                 self.data[i]=image
             self.recenter()
 
@@ -124,7 +125,15 @@ class Sprite:
             image=self.data[i]
             visible=np.nonzero(image[:,:,3])
             self.visible.append(visible)
-            self.center.append([np.mean(visible[1]),np.mean(visible[0])])
+            self.center.append(self.compute_center(visible))
+    
+    def compute_center(self,visible):
+        if self.anchor==0:
+            return [np.mean(visible[1]),np.mean(visible[0])]
+        elif self.anchor==1:
+            return [np.mean(visible[1]),np.max(visible[0])]
+        elif self.anchor==3:
+            return [np.mean(visible[1]),np.min(visible[0])]
 
     def compute_fit(self,image,i):
         visible=self.visible[i]
@@ -211,8 +220,8 @@ class Sprite:
         return (position[0]-center[0],position[1]-center[1])
 
     def overlay(self,background,path,frames=0):
-        pace_count=0
-        s_index=0
+        pace_count=-1
+        s_index=-1
         if frames==0:
             frames=len(background)
         else:
@@ -221,13 +230,13 @@ class Sprite:
             path=sprite_path([(path[0],path[1])]*frames)
         for i in range(frames):
             pace_count+=1
-            img=self.data[self.sequence[s_index]]
             position=path.path[i]
             if pace_count==self.pace:
                 pace_count=0
                 s_index+=1
             if s_index==len(self.sequence):
                 s_index=0
+            img=self.data[self.sequence[s_index]]
             if self.rotate>0:
                 img_new=myim.rotate_image(img,15*self.rotate*i)
                 center=self.center[self.sequence[s_index]]
@@ -273,24 +282,26 @@ def sprite_fullpath(game,object,frame):
 
     return full_path
 
-def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None'):
+def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0):
     if (images[0].shape[2]==3):
         images=myim.add_alpha_channel(images)
-    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
+    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate,anchor=anchor)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
     if path==[0]:
         path=myim.capture_point(images[0])
     return mysprite.overlay(images,path)
 
-def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None'):
-    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate)
+def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0):
+    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate,anchor=anchor)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
     size,size_x,size_y=mysprite.maxsize()
     blank_size=int(size*1.5)
     images=[np.zeros([blank_size,blank_size,4],'uint8')]*mysprite.nframes()
     print(mysprite.nframes())
-    if path==[0]:
+    if path==[0] and center==0:
         path=myim.capture_point(images[0])
+    if path==[0] and center==1:
+        path=(int(blank_size/2),int(blank_size/2))
     return mysprite.overlay(images,path)
