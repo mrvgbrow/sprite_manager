@@ -212,12 +212,22 @@ class Sprite:
                 self.sequence=[]
                 for im in sequence:
                     self.sequence.append(int(im))
+            if tag[0]=='Rotation' and found==1:
+                sequence=tag[1].split(',')
+                self.seqrots=[]
+                for rot in sequence:
+                    self.seqrots.append(int(rot))
         if (found==0):
             print('Sequence '+name+' not found')
         print(self.sequence)
 
     def center_to_corner(self,position,center):
         return (position[0]-center[0],position[1]-center[1])
+
+    def rotate_data(self,theta):
+        for i in range(len(self.data)):
+            self.data[i]=myim.rotate_image(self.data[i],theta)
+        self.recenter()
 
     def overlay(self,background,path,frames=0):
         pace_count=-1
@@ -237,13 +247,8 @@ class Sprite:
             if s_index==len(self.sequence):
                 s_index=0
             img=self.data[self.sequence[s_index]]
-            if self.rotate>0:
-                img_new=myim.rotate_image(img,15*self.rotate*i)
-                center=self.center[self.sequence[s_index]]
-                center=(center[0]+(img_new.shape[1]-img.shape[1])/2,center[1]+(img_new.shape[0]-img.shape[0])/2)
-            else:
-                img_new=self.data[self.sequence[s_index]]
-                center=self.center[self.sequence[s_index]]
+            img_new=self.data[self.sequence[s_index]]
+            center=self.center[self.sequence[s_index]]
             true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
             if path.path[i][0]>=0:
                 background[i]=myim.add_images(img_new,background[i],true_pos[0],true_pos[1])
@@ -285,7 +290,9 @@ def sprite_fullpath(game,object,frame):
 def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0):
     if (images[0].shape[2]==3):
         images=myim.add_alpha_channel(images)
-    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate,anchor=anchor)
+    mysprite=Sprite(game,object,frame,pace=pace,size=size,anchor=anchor)
+    if rotate>0:
+        mysprite.rotate_data(rotate)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
     if path==[0]:
@@ -293,7 +300,9 @@ def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0
     return mysprite.overlay(images,path)
 
 def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0):
-    mysprite=Sprite(game,object,frame,pace=pace,size=size,rotate=rotate,anchor=anchor)
+    mysprite=Sprite(game,object,frame,pace=pace,size=size,anchor=anchor)
+    if rotate>0:
+        mysprite.rotate_data(rotate)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
     size,size_x,size_y=mysprite.maxsize()

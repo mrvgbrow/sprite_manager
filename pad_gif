@@ -1,0 +1,41 @@
+#!/C/uSERs/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import os
+import sys
+import cv2
+import numpy as np
+import argparse
+import myimutils as myim
+from PIL import ImageSequence, Image, ImageOps
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("pad",help="Number of pixels to pad.",type=int)
+ap.add_argument("direction",help="Direction to pad (1: right, 2: left, 3: top, 4: bottom).",type=int)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='temp.gif')
+args=vars(ap.parse_args())
+
+imlist,durations=myim.read_gif(args['infile'])
+
+dimens=imlist[0].shape
+
+if args['direction']==1 or args['direction']==2:
+    new_shape=(dimens[0],dimens[1]+args['pad']+1,3)
+else:
+    new_shape=(dimens[0]+args['pad']+1,dimens[1],3)
+
+for frame in range(len(imlist)):
+    new_image=np.zeros(new_shape,'uint8')
+    if args['direction']==1 or args['direction']==4:
+        new_image[0:dimens[0],0:dimens[1],0:dimens[2]]=imlist[frame]
+    if args['direction']==1:
+        new_image[0:dimens[0],dimens[1],0:3]=255
+    if args['direction']==2:
+        new_image[0:dimens[0],args['pad']:dimens[1]+args['pad'],0:dimens[2]]=imlist[frame]
+    if args['direction']==3:
+        new_image[args['pad']:dimens[0]+args['pad'],0:dimens[1],0:dimens[2]]=imlist[frame]
+    imlist[frame]=new_image
+
+dum=myim.gif_viewer(imlist,durations,'Padded')
+imlist=myim.convert_to_PIL(imlist)
+myim.write_animation(imlist,durations,args['outfile'])

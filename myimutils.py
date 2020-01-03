@@ -321,7 +321,6 @@ def gif_viewer(images,durations,title,pause=0):
         if key==ord('p'):
             pause=(pause+1)%2
         if pause==0:
-            print(i,len(images),(i+1)%len(images),durations[i])
             i=(i+1)%len(images)
     cv2.destroyAllWindows()
     return i

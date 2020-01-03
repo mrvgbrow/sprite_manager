@@ -30,7 +30,7 @@ def get_mask_diff(mask1,mask2):
 
 iter=5
 threshold=0.07
-imlist1 = myimutils.read_imdir(sys.argv[1])
+(imlist1,durations) = myimutils.read_imdir(sys.argv[1])
 image=imlist1[0]
 image=image[...,0:3]
 fuzz=int(myargutils.check_arg(sys.argv,2,5))
