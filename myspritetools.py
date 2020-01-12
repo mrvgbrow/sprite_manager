@@ -1,6 +1,8 @@
 #!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
+import time
 import re
+import multiprocessing
 import glob
 import math
 import cv2
@@ -25,9 +27,11 @@ class sprite_path:
             self.angles=np.array(angles)
     def smooth(self,scale):
         new_path=[]
+        new_speed=[]
         for i in range(len(self.path)):
             xav=0.0
             yav=0.0
+            speedav=0.0
             functot=0.0
             funcref=0.0
             for k in range(2*scale+1):
@@ -36,21 +40,43 @@ class sprite_path:
                 if self.path[j][0]>=0: 
                     xav+=genu.gaussian_function((i-j)/scale)*self.path[j][0]
                     yav+=genu.gaussian_function((i-j)/scale)*self.path[j][1]
+                    speedav+=genu.gaussian_function((i-j)/scale)*self.speed[j]
                     functot+=genu.gaussian_function((i-j)/scale)
             if functot>0.8*funcref:
                 xval=int(round(xav/functot))
                 yval=int(round(yav/functot))
+                speedval=speedav/functot
             else:
                 xval=-1
                 yval=-1
+                speedval=-1
             new_path.append((xval,yval))
+            new_speed.append(speedval)
         self.path=new_path
+        self.speed=new_speed
     
     def overlay(self,background,width=1):
         for i in range(len(background)):
             for j in range(i+1,len(background)):
-                myim.fill_square(background[j],(self.path[i][0],self.path[i][1]),width)
+                myim.fill_square(background[j],(self.path[i][0],self.path[i][1]),width,blend=0.6)
         return background
+
+    def path_length(self,ind1,ind2):
+        return (math.sqrt((self.path[ind1][0]-self.path[ind2][0])**2+(self.path[ind1][1]-self.path[ind2][1])**2))
+
+    def input_path(self,images):
+        self.path=myim.capture_path(images)
+        return 0
+
+    def find_speeds(self):
+        self.speed=[]
+        self.speed.append(self.path_length(1,0))
+        for i in range(1,len(self.path)-1):
+            self.speed.append(self.path_length(i+1,i-1)/2)
+        self.speed.append(self.path_length(len(self.path)-1,len(self.path)-2))
+        return self.speed
+            
+
 
 class Sprite:
     def __init__(self,game,object,frame,pace=1,size=1,rotate=0,directory='',anchor=0):
@@ -143,41 +169,54 @@ class Sprite:
         fit_quality=math.sqrt(fit_quality)/len(visible[0]/3)
         return fit_quality
 
-    def fit(self,background,position,xyrange):
+    def fit_one_im(self,imnum,background,position,interval):
+        sprite_image=self.data[imnum]
+        center0=self.center[imnum]
+        shape=sprite_image.shape
         chimin=1.0e30
-        interval=int(xyrange/2)
-        imin=0
         dxmin=0
         dymin=0
-        for i in range(self.n_image):
-            sprite_image=self.data[i]
-            center0=self.center[i]
-            shape=sprite_image.shape
+        for dx in range(-interval,interval+1):
             if chimin==0:
                 break
+            for dy in range(-interval,interval+1):
+                center=(center0[0]+dx,center0[1]+dy)
+                true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
+                if myim.check_in_image(background,true_pos,shape):
+                    back_sub=myim.window_from_image(background,true_pos,shape)
+                else:
+                    continue
+                chival=self.compute_fit(back_sub,imnum)
+                if chival<chimin:
+                    chimin=chival
+                    dxmin=dx
+                    dymin=dy
+                    if chimin==0:
+                        break
+        return (chimin,dxmin,dymin)
 
-            for dx in range(-interval,interval+1):
-                if chimin==0:
-                    break
-                for dy in range(-interval,interval+1):
-                    center=(center0[0]+dx,center0[1]+dy)
-                    true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
-                    if myim.check_in_image(background,true_pos,shape):
-                        back_sub=myim.window_from_image(background,true_pos,shape)
-                    else:
-                        continue
-                    chival=self.compute_fit(back_sub,i)
-                    if chival<chimin:
-                        chimin=chival
-                        dxmin=dx
-                        dymin=dy
-                        imin=i
-                        if chimin==0:
-                            break
+
+
+    def fit(self,background,position,xyrange):
+        interval=int(xyrange/2)
+        starttime=time.time()
+        dxmin0=0
+        dymin0=0
+        imin=0
+        chimin0=1e30
+        for i in range(self.n_image):
+            (chimin,dxmin,dymin)=self.fit_one_im(i,background,position,interval)
+            if chimin<chimin0:
+                 chimin0=chimin
+                 dxmin0=dxmin
+                 dymin0=dymin
+                 imin=i
+            if chimin0==0:
+                 break
         center=np.array([int(self.center[imin][0])+dxmin,int(self.center[imin][1])+dymin])
         feathered_indices=self.feather_visible(2,imin)
         back_indices=myim.shift_indices(feathered_indices,np.array(position)-center)
-        return [chimin,dxmin,dymin,imin,back_indices]
+        return [chimin0,dxmin0,dymin0,imin,back_indices]
 
     def maxsize(self):
         maxsize=0
@@ -227,6 +266,17 @@ class Sprite:
     def rotate_data(self,theta):
         for i in range(len(self.data)):
             self.data[i]=myim.rotate_image(self.data[i],theta)
+        self.recenter()
+
+    def flip_data(self,axis):
+        for i in range(len(self.data)):
+            shape=self.data[0].shape
+            new_arr=np.zeros(shape,'uint8')
+            if axis==1:
+                new_arr[0:shape[0],0:shape[1],0:4]=self.data[i][0:shape[0],-1::-1,0:4]
+            if axis==2:
+                new_arr[0:shape[0],0:shape[1],0:4]=self.data[i][-1::-1,0:shape[1],0:4]
+            self.data[i]=new_arr
         self.recenter()
 
     def overlay(self,background,path,frames=0):
@@ -287,27 +337,37 @@ def sprite_fullpath(game,object,frame):
 
     return full_path
 
-def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0):
+def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0,flip=0):
     if (images[0].shape[2]==3):
         images=myim.add_alpha_channel(images)
     mysprite=Sprite(game,object,frame,pace=pace,size=size,anchor=anchor)
     if rotate>0:
         mysprite.rotate_data(rotate)
+    if flip>0:
+        mysprite.flip_data(flip)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
     if path==[0]:
         path=myim.capture_point(images[0])
     return mysprite.overlay(images,path)
 
-def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0):
+def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0,flip=0,text=''):
     mysprite=Sprite(game,object,frame,pace=pace,size=size,anchor=anchor)
     if rotate>0:
         mysprite.rotate_data(rotate)
+    if flip>0:
+        mysprite.flip_data(flip)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
     size,size_x,size_y=mysprite.maxsize()
     blank_size=int(size*1.5)
     images=[np.zeros([blank_size,blank_size,4],'uint8')]*mysprite.nframes()
+    if text != '':
+        fontsize=blank_size/200
+        text_pos_x=int(blank_size/2)-int(len(text)*8*fontsize)
+        text_pos_y=int(blank_size/6)
+        for i in range(len(images)):
+            cv2.putText(images[i],text,(text_pos_x,text_pos_y),cv2.FONT_HERSHEY_SIMPLEX,fontsize,(255,255,255),1,cv2.LINE_AA)
     print(mysprite.nframes())
     if path==[0] and center==0:
         path=myim.capture_point(images[0])

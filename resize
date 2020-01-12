@@ -12,7 +12,7 @@ ap.add_argument("resize_factor",help="Factor by which to resize the image",type=
 ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.gif')
 args=vars(ap.parse_args())
 
-imlist1,durations = myim.read_gif(args['infile'])
+imlist1,durations = myim.read_imdir(args['infile'])
 
 i=0
 shape=(int(imlist1[0].shape[0]*args['resize_factor']),int(imlist1[0].shape[1]*args['resize_factor']))

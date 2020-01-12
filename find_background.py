@@ -1,12 +1,10 @@
 #!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
-import os
 import sys
 import cv2
 import numpy as np
 import argparse
 import myimutils
-import myargutils
 import mycolortools
 from scipy import stats
 
@@ -25,15 +23,18 @@ for im in imlist1:
 imagemode=stats.mode(imlist1)
 image=np.squeeze(imagemode[0],axis=0)
 image_mode=mycolortools.color_expand(image)
+cv2.imwrite('test2.png',image_mode)
 myimutils.imshow_loop(image_mode,'Background Image','x')
 
 i=0
 for im in imlist1:
-    imlist1[i]=mycolortools.color_expand(imlist1[i])
-    imlist1[i]=np.subtract(imlist1[i],image_mode)
-    indices=mycolortools.select_color(imlist1[i],[0,0,0],args['fuzz'],invert=True)
-    mask=myimutils.make_mask(indices,imlist1[i].shape)
-    imlist1[i]=myimutils.maketransparent_withmask(imlist1[i],mask)
+    indices=np.nonzero(im==image)
+    im[indices]=0
+    imlist1[i]=mycolortools.color_expand(im)
+#    indices=mycolortools.select_color(imlist1[i],[0,0,0],args['fuzz'],invert=True)
+#    mask=myimutils.make_mask(indices,imlist1[i].shape)
+#    imlist1[i]=myimutils.maketransparent_withmask(imlist1[i],mask)
     i+=1
 cv2.imwrite(args['outfile'],image)
+imlist1=myimutils.convert_to_PIL(imlist1)
 myimutils.write_animation(imlist1,durations,args['outgif'])

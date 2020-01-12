@@ -1,10 +1,12 @@
 import math
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 import os
 import sys
 import time
 import shutil
+import plotfunctions as pfunc
 from PIL import Image
 
 def add_images(image2,image1,x,y):
@@ -266,6 +268,7 @@ def convert_to_PIL(list_np_array):
 def write_animation(pil_array,durations,outfile):
     for i in range(len(pil_array)):
         pil_array[i]=pil_array[i].convert("P")
+    print(len(pil_array))
     pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],duration=durations,loop=0,palette='P')
 #    imageio.mimsave(outfile,pil_array)
 
@@ -288,6 +291,39 @@ def img_viewer(image,title):
         if key==ord('x'):
             break
     cv2.destroyAllWindows()
+
+def gif_plot(y,images,durations,title='',pause=0):
+#    xarr=pfunc.setup_plot(y,xlabel='frame',title=title)
+    fig=plt.figure()
+    x=np.array(range(len(y)))
+    y=np.array(y)
+    cv2.namedWindow('plot',flags=cv2.WINDOW_NORMAL)
+    line1,=plt.plot(x,y,'ko-')
+    i=0
+    while True:
+        line1.set_xdata(x[:i])
+        line1.set_ydata(y[:i])
+        fig.canvas.draw()
+
+        img=np.fromstring(fig.canvas.tostring_rgb(),dtype=np.uint8,sep='')
+        img=img.reshape(fig.canvas.get_width_height()[::-1]+(3,))
+        img=cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+
+        cv2.imshow('plot',img)
+        cv2.imshow("image",images[i])
+        wait=durations[i]
+        key = cv2.waitKey(wait) & 0xFF
+        if key==ord(']'):
+            i=(i+1)%len(images)
+        if key==ord('['):
+            i=(i-1)%len(images)
+        if key==ord('p'):
+            pause=(pause+1)%2
+        if pause==0:
+            i=(i+1)%len(images)
+        if key==ord('x'):
+            break
+
 
 def gif_viewer(images,durations,title,pause=0):
     global refPt
@@ -325,6 +361,53 @@ def gif_viewer(images,durations,title,pause=0):
     cv2.destroyAllWindows()
     return i
 
+def capture_path(images):
+    global refPt
+
+    refPt=(0,0)
+    i=0
+    info_window=np.zeros((40,500,3))
+    cv2.namedWindow('Define Sprite Path')
+    cv2.setMouseCallback('Define Sprite Path',click_mouseover)
+    path=[(-2,-2)]*len(images)
+    while True:
+        info_window*=0
+        info_string='Frame: '+str(i)+', (x,y) = '+str(refPt)
+        if path[i]!=(-2,-2):
+            info_string+=' Frame Marked: '+str(path[i])
+        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        thisim=images[i]
+        cv2.imshow('Define Sprite Path',thisim.astype('uint8'))
+        cv2.imshow('Info',info_window)
+        wait=5
+        key = cv2.waitKey(wait) & 0xFF
+        if key==ord('x'):
+            break
+        if key==ord(']'):
+            i=(i+1)%len(images)
+        if key==ord('['):
+            i=(i-1)%len(images)
+        if key==ord('a'):
+            path[i]=refPt
+        if key==ord('l'):
+            path[i]=(-1,-1)
+    position=path[0]
+    increment=(0,0)
+    for i in range(len(images)):
+        if (path[i]==(-2,-2)):
+            position=(position[0]+increment[0],position[1]+increment[1])
+            path[i]=(int(position[0]),int(position[1]))
+        else:
+            position=path[i]
+            for j in range(i+1,len(images)):
+                if path[j]!=(-2,-2):
+                    pathdiff=(path[j][0]-path[i][0],path[j][1]-path[i][1])
+                    increment=(pathdiff[0]/(j-i),pathdiff[1]/(j-i))
+                    break
+                increment=(0,0)
+    cv2.destroyAllWindows()
+    return path
+
 def rotate_image(mat, angle):
     """
     Rotates an image (angle in degrees) and expands image to avoid cropping
@@ -357,6 +440,15 @@ def check_in_image(image,refPt,shape):
     if (refPt[1] < 0 or refPt[1]+shape[0] > image.shape[0]):
         return False
     return True
+
+def remove_near_boundary(image,indices,offset_range):
+    dimens=image.shape
+    indices_of_indices=np.nonzero((indices[0]>offset_range) & (indices[0]<dimens[0]-offset_range) & (indices[1]>offset_range) & (indices[1]<dimens[1]-offset_range))
+    return (indices[0][indices_of_indices],indices[1][indices_of_indices])
+
+def indices_in_box(indices,xmin,xmax,ymin,ymax):
+    indices_of_indices=np.nonzero((indices[0]>ymin) & (indices[0]<ymax) & (indices[1]>xmin) & (indices[1]<xmax))
+    return (indices[0][indices_of_indices],indices[1][indices_of_indices])
 
 def window_from_image(image,position,shape):
     return image[position[1]:position[1]+shape[0],position[0]:position[0]+shape[1]]
@@ -412,8 +504,22 @@ def grid_to_indices(xv,yv):
 #def image_map(image,x1,y1,x2,y2):
 #    image_new=np.zeros([
 
-def fill_square(image,position,halfside):
+def fill_square(image,position,halfside,blend=0):
     for i in range(-halfside,halfside+1):
         for j in range(-halfside,halfside+1):
             for c in range(0,3):
-                image[position[1]+i,position[0]+j,c]=255
+                image[position[1]+i,position[0]+j,c]=image[position[1]+i,position[0]+j,c]*blend+(1-blend)*255
+
+def find_offset(array1,array2,indices,direction=1,offset_range=3):
+    most_matches=0
+    for offset in range(-offset_range,offset_range+1):
+        if direction==1:
+            indices_comp=(indices[0]+offset,indices[1])
+        else:
+            indices_comp=(indices[0]+offset,indices[1])
+        compare=np.nonzero(array1[indices]==array2[indices_comp])
+        nmatch=(compare[0].shape)[0]
+        if nmatch>most_matches:
+            most_matches=nmatch
+            offset_ref=offset
+    return offset_ref

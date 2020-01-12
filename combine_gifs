@@ -11,7 +11,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("infile1",help="Name of the first input animation",type=str)
 ap.add_argument("infile2",help="Name of the second input animation",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='temp.gif')
-ap.add_argument("-d","--duration",required=False,help="The frame delay (must be constant)",type=int,default=1)
+ap.add_argument("-d","--duration",required=False,help="The frame delay (must be constant)",type=float,default=10)
 args=vars(ap.parse_args())
 
 imlist1,durations1 = myim.read_gif(args['infile1'])

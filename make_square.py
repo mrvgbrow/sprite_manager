@@ -6,17 +6,17 @@ import cv2
 import numpy as np
 import argparse
 import myimutils
-import myargutils
 import time
 from PIL import ImageSequence, Image, ImageOps
 
-#ap = argparse.ArgumentParser()
-#ap.add_argument("-i","--image",required=True,help="Path to the image")
-#args=vars(ap.parse_args())
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='temp.gif')
+args=vars(ap.parse_args())
 
-im=Image.open(sys.argv[1])
+im=Image.open(args['infile'])
 
-outfile=myargutils.check_arg(sys.argv,2,'temp.gif')
+outfile=args['outfile']
 dimens=im.size
 
 square_size=max(dimens)
