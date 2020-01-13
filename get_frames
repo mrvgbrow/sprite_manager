@@ -1,0 +1,22 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import argparse
+import myimutils as myim
+import sys
+import os
+from PIL import Image
+import cv2
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input file",type=str)
+ap.add_argument("-s","--startframe",required=False,help="The first frame to get.",type=int,default=0)
+ap.add_argument("-e","--endframe",required=False,help="The last frame to get.",type=int,default=9)
+ap.add_argument("-o","--outfile",required=False,help="Output GIF file.",type=str,default='temp.gif')
+args=vars(ap.parse_args())
+
+ims,durations=myim.read_gif(args['infile'])
+ims_sub=ims[args['startframe']:args['endframe']+1]
+durations_sub=durations[args['startframe']:args['endframe']+1]
+dum=myim.gif_viewer(ims_sub,durations_sub,args['infile'])
+ims_sub=myim.convert_to_PIL(ims_sub)
+myim.write_animation(ims_sub,durations_sub,args['outfile'])

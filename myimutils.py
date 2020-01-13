@@ -294,11 +294,20 @@ def img_viewer(image,title):
 
 def gif_plot(y,images,durations,title='',pause=0):
 #    xarr=pfunc.setup_plot(y,xlabel='frame',title=title)
-    fig=plt.figure()
+    dpi=200
+    figsize=(images[0].shape[0]/dpi*1.4,images[0].shape[0]/dpi)
+    fig=plt.figure(figsize=figsize,dpi=dpi)
     x=np.array(range(len(y)))
     y=np.array(y)
-    cv2.namedWindow('plot',flags=cv2.WINDOW_NORMAL)
-    line1,=plt.plot(x,y,'ko-')
+#    cv2.namedWindow('plot',flags=cv2.WINDOW_NORMAL)
+    cv2.namedWindow('plot')
+    line1,=plt.plot(x,y,'ko-',markersize=0)
+    plt.xticks(size=3)
+    plt.yticks(size=3)
+    plt.tight_layout()
+    plt.axis([0,np.max(x),0,np.max(y)])
+    plt.ylabel('speed (pix/frame)',size=5)
+    plt.xlabel('Frame',size=5)
     i=0
     while True:
         line1.set_xdata(x[:i])

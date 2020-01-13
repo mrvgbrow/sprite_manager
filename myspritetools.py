@@ -54,6 +54,12 @@ class sprite_path:
             new_speed.append(speedval)
         self.path=new_path
         self.speed=new_speed
+
+    def determine_angles(self):
+        self.angle[0]=atan2((self.path[1][0]-self.path[0][0]),(self.path[1][1]-self.path[0][1]))
+        for i in range(1,len(self.path)):
+            self.angle[i]=atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))
+
     
     def overlay(self,background,width=1):
         for i in range(len(background)):
