@@ -5,6 +5,14 @@ import numpy as np
 import os
 import sys
 
+colorsRGB = {
+        'white': (255,255,255),
+        'black': (0,0,0),
+        'red': (255,0,0),
+        'green': (0,255,0),
+        'blue': (0,0,255)
+    }
+
 def color_distance(image1,image2):
     im1=image1.astype('int')
     im2=image2.astype('int')
@@ -61,3 +69,9 @@ def imshow_get_color(image,title,exit_char):
     cv2.destroyAllWindows()
     return (color[0],color[1],color[2])
             
+def color_to_RGB(string):
+    return colorsRGB.get(string)
+
+def color_to_BGR(string):
+    color=colorsRGB.get(string)
+    return (color[2],color[1],color[0])

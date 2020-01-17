@@ -40,7 +40,8 @@ def read_gif(infile):
     durations=[]
     for i in range(im.n_frames):
         im.seek(i)
-        durations.append(im.info['duration'])
+        if im.n_frames>1:
+            durations.append(im.info['duration'])
         pix=np.array(im.convert('RGB'))
         pix=pix[:,:,[2,1,0]]
         allims.append(pix)
@@ -118,12 +119,16 @@ def click_rectangle(event,x,y,flags,param):
         clicked=0
         boxcorners.append((x,y))
 
-def capture_point(image):
+def capture_point(image,mode=0):
     global clicked,refPt
 
     clicked=0
     refPt=(0,0)
-    cv2.namedWindow("image")
+    if mode==1:
+        cv2.namedWindow("image",flags=cv2.WINDOW_NORMAL)
+    else:
+        cv2.namedWindow("image")
+
     cv2.setMouseCallback("image",click_point)
 
     while True:
@@ -269,7 +274,10 @@ def write_animation(pil_array,durations,outfile):
     for i in range(len(pil_array)):
         pil_array[i]=pil_array[i].convert("P")
     print(len(pil_array))
-    pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],duration=durations,loop=0,palette='P')
+    if len(durations)>0:
+        pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],duration=durations,loop=0,palette='P')
+    else:
+        pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],loop=0,palette='P')
 #    imageio.mimsave(outfile,pil_array)
 
 def img_viewer(image,title):
@@ -351,7 +359,10 @@ def gif_viewer(images,durations,title,pause=0):
         thisim=images[i]
         cv2.imshow(title,thisim.astype('uint8'))
         cv2.imshow('Info',info_window)
-        wait=int(durations[i]*speed_factor)
+        if len(durations)>0:
+            wait=int(durations[i]*speed_factor)
+        else:
+            wait=5
         key = cv2.waitKey(wait) & 0xFF
         if key==ord('x'):
             break

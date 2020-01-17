@@ -1,0 +1,71 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+import mycolortools as mycolor
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input image to draw from",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='test.gif')
+ap.add_argument("-c","--color",required=False,help="Line color.",type=str,default='white')
+ap.add_argument("-f","--frames",required=False,help="Animation frames per line.",type=int,default=3)
+ap.add_argument("-e","--expandfac",required=False,help="Factor by which the final animation is larger than the original sprite.",type=int,default=3)
+ap.add_argument("-l","--linewidth",required=False,help="Width of draw line.",type=int,default=5)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile'])
+
+box=myim.capture_box(imlist1[0])
+points=[]
+xlist=[]
+ylist=[]
+while True:
+    point=myim.capture_point(imlist1[0][box[0][1]:box[1][1],box[0][0]:box[1][0]],mode=1)
+    if point == (0,0):
+        break
+    point_expand=(point[0]*args['expandfac'],point[1]*args['expandfac'])
+    points.append(point_expand)
+    xlist.append(point_expand[0])
+    ylist.append(point_expand[1])
+
+padfac=2
+shape1=int((max(ylist)-min(ylist))*padfac)
+shape2=int((max(xlist)-min(xlist))*padfac)
+raypoint=(int(0.15*shape2),int(0.15*shape1))
+imlist1=[]
+durations=[]
+x_norm=min(xlist)-int(0.25*shape2)
+y_norm=min(ylist)-int(0.25*shape1)
+im_ref=np.zeros((shape1,shape2,3),'uint8')
+color=mycolor.color_to_BGR(args['color'])
+bluecolor=mycolor.color_to_BGR('blue')
+fpl=args['frames']
+increment=1/fpl
+pt0=(points[0][0]-x_norm,points[0][1]-y_norm)
+xdiff=(points[1][0]-points[0][0])/fpl
+ydiff=(points[1][1]-points[0][1])/fpl
+index=0
+for i in range(fpl*(len(points)-1)-1):
+    step=(i+1)-index*fpl
+    pt1=(int(pt0[0]+step*xdiff),int(pt0[1]+step*ydiff))
+    imhere=np.copy(im_ref)
+    cv2.line(imhere,pt0,pt1,color,args['linewidth'])
+    im_ref=np.copy(imhere)
+    cv2.line(imhere,raypoint,pt1,bluecolor)
+    imlist1.append(imhere)
+    durations.append(30)
+    if step==fpl and index<len(points)-2:
+        index+=1
+        pt0=(points[index][0]-x_norm,points[index][1]-y_norm)
+        xdiff=(points[index+1][0]-points[index][0])/fpl
+        ydiff=(points[index+1][1]-points[index][1])/fpl
+
+imlist1.append(im_ref)
+durations.append(3000)
+myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'])

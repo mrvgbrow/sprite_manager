@@ -15,16 +15,20 @@ import myimutils as myim
 from scipy import ndimage
 
 class sprite_path:
-    def __init__(self,path,sizes=[],angles=[]):
+    def __init__(self,path,sizes=[],angle1=[],angle2=[]):
         self.path=np.array(path)
         if len(sizes)!=len(path):
             self.sizes=self.path*0.0
         else:
             self.sizes=np.array(sizes)
-        if len(angles)!=len(angles):
-            self.angles=self.path*0.0
+        if len(angle1)!=len(angle1):
+            self.angle1=self.path*0.0
         else:
-            self.angles=np.array(angles)
+            self.angle1=np.array(angle1)
+        if len(angle2)!=len(angle2):
+            self.angle2=self.path*0.0
+        else:
+            self.angle2=np.array(angle2)
     def smooth(self,scale):
         new_path=[]
         new_speed=[]
@@ -56,9 +60,9 @@ class sprite_path:
         self.speed=new_speed
 
     def determine_angles(self):
-        self.angle[0]=atan2((self.path[1][0]-self.path[0][0]),(self.path[1][1]-self.path[0][1]))
+        self.angle1[0]=atan2((self.path[1][0]-self.path[0][0]),(self.path[1][1]-self.path[0][1]))
         for i in range(1,len(self.path)):
-            self.angle[i]=atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))
+            self.angle1[i]=atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))
 
     
     def overlay(self,background,width=1):
@@ -302,8 +306,9 @@ class Sprite:
                 s_index+=1
             if s_index==len(self.sequence):
                 s_index=0
-            img=self.data[self.sequence[s_index]]
             img_new=self.data[self.sequence[s_index]]
+            if path.angle1[i] != 0:
+                img_new=myim.rotate_image(img_new,path.angle1[i])
             center=self.center[self.sequence[s_index]]
             true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
             if path.path[i][0]>=0:
