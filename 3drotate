@@ -1,0 +1,46 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import math
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.gif')
+ap.add_argument("-r","--rate",required=False,help="Rate of rotation, per 1000 frames.",type=float,default='1')
+ap.add_argument("-n","--nframes",required=False,help="Number of frames in animation.",type=int,default='1000')
+args=vars(ap.parse_args())
+
+imlist,durations = myim.read_imdir(args['infile'])
+
+i=0
+shape=imlist[0].shape
+pt1_1=[0,0]
+pt2_1=[shape[1]-1,0]
+pt3_1=[0,shape[0]-1]
+
+src_tri=np.array([pt1_1,pt2_1,pt3_1]).astype(np.float32)
+nrot=int(1000/args['rate'])
+increment=2*math.pi/nrot
+center=int(shape[1]/2)
+
+imlist_new=[]
+durations=[]
+for i in range(args['nframes']):
+    angle=(i%nrot)*increment
+    halfwidth=int(shape[1]*math.cos(angle)/2)
+    pt1_2=[center-halfwidth,0]
+    pt2_2=[center+halfwidth,0]
+    pt3_2=[center-halfwidth,shape[0]-1]
+    dst_tri=np.array([pt1_2,pt2_2,pt3_2]).astype(np.float32)
+    warp_mat=cv2.getAffineTransform(src_tri,dst_tri)
+    imlist_new.append(cv2.warpAffine(imlist[0],warp_mat,(shape[1],shape[0])))
+    durations.append(1)
+
+myim.gif_viewer(imlist_new,durations,'Result')
+imlist_new=myim.convert_to_PIL(imlist_new)
+myim.write_animation(imlist_new,durations,args['outfile'])

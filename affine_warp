@@ -1,0 +1,36 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.gif')
+args=vars(ap.parse_args())
+
+imlist,durations = myim.read_imdir(args['infile'])
+
+i=0
+shape=imlist[0].shape
+pt1_1=[0,0]
+pt2_1=[shape[1]-1,0]
+pt3_1=[0,shape[0]-1]
+pt1_2=np.array(myim.capture_point(imlist[0]))
+pt2_2=np.array(myim.capture_point(imlist[0]))
+pt3_2=np.array(myim.capture_point(imlist[0]))
+
+src_tri=np.array([pt1_2,pt2_2,pt3_2]).astype(np.float32)
+dst_tri=np.array([pt1_1,pt2_1,pt3_1]).astype(np.float32)
+
+warp_mat=cv2.getAffineTransform(src_tri,dst_tri)
+
+for i in range(len(imlist)):
+    imlist[i]=cv2.warpAffine(imlist[i],warp_mat,(shape[1],shape[0]))
+
+myim.gif_viewer(imlist,durations,'Result')
+imlist=myim.convert_to_PIL(imlist)
+myim.write_animation(imlist,durations,args['outfile'])
