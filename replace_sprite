@@ -39,5 +39,6 @@ for i in range(len(images)):
 
 object_path=myspritetools.sprite_path(path)
 images=myspritetools.add_sprite(images,args['game2'],args['object2'],path=object_path,pace=args['pace'],size=args['size'],rotate=args['rotate'])
-myimutils.write_animation(images,durations,args['outfile'])
 dum=myimutils.gif_viewer(images,durations,'Sprite Replaced')
+images=myimutils.convert_to_PIL(images)
+myimutils.write_animation(images,durations,args['outfile'])

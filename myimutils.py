@@ -280,13 +280,16 @@ def write_animation(pil_array,durations,outfile):
         pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],loop=0,palette='P')
 #    imageio.mimsave(outfile,pil_array)
 
-def img_viewer(image,title):
+def img_viewer(image,title='Image',mode=0):
     global refPt
 
     refPt=(0,0)
     info_window=np.zeros((40,500,3))
     print(image.shape)
-    cv2.namedWindow(title)
+    if mode==1:
+        cv2.namedWindow(title,flags=cv2.WINDOW_NORMAL)
+    else:
+        cv2.namedWindow(title)
     cv2.setMouseCallback(title,click_mouseover)
     while True:
         info_window*=0

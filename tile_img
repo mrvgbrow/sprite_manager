@@ -1,0 +1,72 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import numpy as np
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import mycolortools as mycolor
+import tiletools as tt
+
+def click_map(event,x,y,flags,param):
+    global clicked_map,refPt_map
+    if event == cv2.EVENT_LBUTTONDOWN:
+        clicked_map=1
+        refPt_map=(x,y)
+
+def move_img(event,x,y,flags,param):
+    global refPt_img
+    if event == cv2.EVENT_MOUSEMOVE:
+        refPt_img=(x,y)
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("game",help="Game that tilemap is from",type=str)
+ap.add_argument("map",help="Name of the specific tilemap",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output PNG file",default='0')
+ap.add_argument("-x","--sizex",required=False,help="Number of tiles in the x direction",type=int,default=30)
+ap.add_argument("-y","--sizey",required=False,help="Number of tiles in the y direction",type=int,default=30)
+ap.add_argument("-z","--zoom",required=False,help="Zoom factor for image/tilemap display",type=int,default=3)
+args=vars(ap.parse_args())
+
+tilemap=tt.tilemap(args['map'],game=args['game'])
+tilesize=tilemap.tilesize[0]*args['zoom']
+img=np.zeros((args['sizey']*tilesize,args['sizex']*tilesize,3),dtype='uint8')
+tilemap_zoom=cv2.resize(tilemap.data0,(0,0),fx=args['zoom'],fy=args['zoom'])
+tilemap.resize(tilesize)
+
+cv2.namedWindow("destination image")
+cv2.setMouseCallback("destination image",move_img)
+cv2.namedWindow("tilemap")
+cv2.setMouseCallback("tilemap",click_map)
+refPt_map=(0,0)
+refPt_img=(0,0)
+
+rotation=0
+flip=0
+while True:
+    cv2.imshow('tilemap',tilemap_zoom)
+    cv2.imshow('destination image',img)
+    key = cv2.waitKey(1) & 0xFF
+
+    if key==ord('f'):
+        flip=(flip+1)%2
+        orientation=(rotation+1)+(flip%2)*4-1
+        img=tilemap.place_tile(img,tilenum,refPt_img,orientation=orientation)
+    if key==ord('r'):
+        rotation=(rotation+1)%4
+        orientation=(rotation+1)+(flip%2)*4-1
+        img=tilemap.place_tile(img,tilenum,refPt_img,orientation=orientation)
+    if key==ord('p'):
+        rotation=0
+        flip=0
+        tilenum=tilemap.pos_to_tile(refPt_map)
+        img=tilemap.place_tile(img,tilenum,refPt_img)
+    if key==ord('x'):
+        print(refPt_map)
+        break
+
+cv2.destroyAllWindows()
+
+
+

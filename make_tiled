@@ -1,0 +1,69 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import mycolortools as mycolor
+import tiletools as tt
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input tilemap",type=str)
+ap.add_argument("game",help="Game that tilemap is frome",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output PNG file",default='0')
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile'])
+
+shape=imlist1[0].shape
+back_thresh=5
+
+# Determine how many columns/rows before the tile map starts
+
+init_count_x=0
+for i in range(shape[1]):
+    if mycolor.color_spread(imlist1[0][:,i]) > back_thresh:
+        break
+    init_count_x+=1
+
+init_count_y=0
+for i in range(shape[0]):
+    if mycolor.color_spread(imlist1[0][i,:]) > back_thresh:
+        break
+    init_count_y+=1
+
+# Determine how many columns/rows in each tile
+
+tile_count_x=0
+for i in range(init_count_x,shape[1]):
+    if mycolor.color_spread(imlist1[0][:,i]) < back_thresh:
+        break
+    tile_count_x+=1
+
+tile_count_y=0
+for i in range(init_count_y,shape[0]):
+    if mycolor.color_spread(imlist1[0][i,:]) < back_thresh:
+        break
+    tile_count_y+=1
+
+# Determine how many columns/rows between tiles
+
+
+gap_count_x=0
+for i in range(init_count_x+tile_count_x,shape[1]):
+    if mycolor.color_spread(imlist1[0][:,i]) > back_thresh:
+        break
+    gap_count_x+=1
+
+gap_count_y=0
+for i in range(init_count_y+tile_count_y,shape[0]):
+    if mycolor.color_spread(imlist1[0][i,:]) > back_thresh:
+        break
+    gap_count_y+=1
+
+
+tilemap=tt.tilemap(imlist1[0],tilesize=(tile_count_x,tile_count_y),tilesep=(gap_count_x,gap_count_y),init_skip=(init_count_x,init_count_y))
+tilemap.resize(8)
+tileout=tilemap.save_tiles(args['game'],filename=args['outfile'])
+myim.img_viewer(tileout,mode=0)
+

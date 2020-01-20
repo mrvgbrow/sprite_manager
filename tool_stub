@@ -8,7 +8,7 @@ import argparse
 
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input animation",type=str)
-ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.gif')
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
 args=vars(ap.parse_args())
 
 imlist1,durations = myim.read_gif(args['infile'])
