@@ -4,6 +4,7 @@ import cv2
 import myimutils as myim
 import sys
 import argparse
+import numpy as np
 
 
 ap = argparse.ArgumentParser()

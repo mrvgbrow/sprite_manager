@@ -19,3 +19,11 @@ def cart_to_polar(xv,yv,maxrad=1,minrad=0,axis=0,phase=0):
     ynew_v=r_v*np.sin(theta_v+phase)
     return((xnew_v,ynew_v))
 
+def sample_line(pos1,pos2,nsample):
+    inc_x=int((pos2[0]-pos1[0])/(nsample-1))
+    inc_y=int((pos2[1]-pos1[1])/(nsample-1))
+    pos_all=[pos1]
+    for i in range(nsample-2):
+        pos_all.append((int(pos1[0]+(i+1)*inc_x),int(pos1[1]+(i+1)*inc_y)))
+    pos_all.append(pos2)
+    return pos_all

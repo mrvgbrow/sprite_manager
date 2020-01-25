@@ -1,4 +1,5 @@
 import math
+import imageio
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -270,15 +271,20 @@ def convert_to_PIL(list_np_array):
         new_array.append(Image.fromarray(im.astype('uint8')))
     return new_array
 
-def write_animation(pil_array,durations,outfile):
+def write_gif(np_image,outfile):
+    im=convert_to_PIL([np_image])
+    im[0].save(outfile,palette='P')
+
+def write_animation(pil_array,durations,outfile,pil=1):
+    if pil==0:
+        imageio.mimsave(outfile,pil_array)
+        return
     for i in range(len(pil_array)):
         pil_array[i]=pil_array[i].convert("P")
-    print(len(pil_array))
     if len(durations)>0:
         pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],duration=durations,loop=0,palette='P')
     else:
         pil_array[0].save(outfile,save_all=True,append_images=pil_array[1:],loop=0,palette='P')
-#    imageio.mimsave(outfile,pil_array)
 
 def img_viewer(image,title='Image',mode=0):
     global refPt
@@ -293,7 +299,11 @@ def img_viewer(image,title='Image',mode=0):
     cv2.setMouseCallback(title,click_mouseover)
     while True:
         info_window*=0
-        info_string='(x,y) = '+str(refPt)
+        if check_in_image(image,refPt,(1,1)):
+            colorstring=str(image[(refPt[1],refPt[0])])
+        else:
+            colorstring=''
+        info_string='(x,y) = '+str(refPt)+'  RGB='+colorstring
         cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         cv2.imshow(title,image.astype('uint8'))
         cv2.imshow('Info',info_window)

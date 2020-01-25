@@ -28,8 +28,8 @@ for frame in range(len(imlist)):
     new_image=np.zeros(new_shape,'uint8')
     if args['direction']==1 or args['direction']==4:
         new_image[0:dimens[0],0:dimens[1],0:dimens[2]]=imlist[frame]
-    if args['direction']==1:
-        new_image[0:dimens[0],dimens[1],0:3]=255
+#    if args['direction']==1:
+#        new_image[0:dimens[0],dimens[1],0:3]=255
     if args['direction']==2:
         new_image[0:dimens[0],args['pad']:dimens[1]+args['pad'],0:dimens[2]]=imlist[frame]
     if args['direction']==3:

@@ -18,15 +18,15 @@ class sprite_path:
     def __init__(self,path,sizes=[],angle1=[],angle2=[]):
         self.path=np.array(path)
         if len(sizes)!=len(path):
-            self.sizes=self.path*0.0
+            self.sizes=[0.0]*len(self.path)
         else:
             self.sizes=np.array(sizes)
-        if len(angle1)!=len(angle1):
-            self.angle1=self.path*0.0
+        if len(angle1)!=len(path):
+            self.angle1=[0.0]*len(self.path)
         else:
             self.angle1=np.array(angle1)
-        if len(angle2)!=len(angle2):
-            self.angle2=self.path*0.0
+        if len(angle2)!=len(path):
+            self.angle2=[0.0]*len(self.path)
         else:
             self.angle2=np.array(angle2)
     def smooth(self,scale):
@@ -76,6 +76,9 @@ class sprite_path:
 
     def input_path(self,images):
         self.path=myim.capture_path(images)
+        self.angle1=[0.0]*len(self.path)
+        self.angle2=[0.0]*len(self.path)
+        self.sizes=[0.0]*len(self.path)
         return 0
 
     def find_speeds(self):

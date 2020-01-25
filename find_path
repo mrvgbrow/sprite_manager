@@ -5,54 +5,68 @@ import sys
 import cv2
 import numpy as np
 import argparse
+import multiprocessing
 import myimutils
-import myargutils
+import plotfunctions as pfunc
 import myspritetools
-import time
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
 import math
 
-ap = argparse.ArgumentParser()
-ap.add_argument("infile",help="Name of the input background file",type=str)
-ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
-ap.add_argument("game",help="Name of the game the sprite is from",type=str)
-ap.add_argument("object",help="Name of the object the sprite represents",type=str)
-ap.add_argument("-f","--frame",required=False,help="The particular frame in the sprite sequence",type=str,default='all')
-ap.add_argument("-s","--size",required=False,help="The sprite size scale factor",type=float,default=1.0)
-ap.add_argument("-r","--range",required=False,help="Range of position offsets to consider",type=int,default=10)
-ap.add_argument("-z","--rotations",required=False,help="Number of sprite rotation angles to test",type=int,default=1)
-ap.add_argument("-t","--threshold",required=False,help="Chi value that will trigger a full image search",type=int,default=10)
-args=vars(ap.parse_args())
 
-game=args['game']
-object=args['object']
-(background,durations)=myimutils.read_imdir(args['infile'])
-frame=args['frame']
-outfile=args['outfile']
-size=args['size']
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("infile",help="Name of the input background file",type=str)
+    ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+    ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+    ap.add_argument("object",help="Name of the object the sprite represents",type=str)
+    ap.add_argument("-f","--frame",required=False,help="The particular frame in the sprite sequence",type=str,default='all')
+    ap.add_argument("-s","--size",required=False,help="The sprite size scale factor",type=float,default=1.0)
+    ap.add_argument("-r","--range",required=False,help="Range of position offsets to consider",type=int,default=10)
+    ap.add_argument("-m","--smooth",required=False,help="Frames to smooth over in the speed plot.",type=int,default=5)
+    ap.add_argument("-z","--rotations",required=False,help="Number of sprite rotation angles to test",type=int,default=1)
+    ap.add_argument("-t","--threshold",required=False,help="Chi value that will trigger a full image search",type=int,default=10)
+    args=vars(ap.parse_args())
+
+    game=args['game']
+    object=args['object']
+    (background,durations)=myimutils.read_imdir(args['infile'])
+    frame=args['frame']
+    outfile=args['outfile']
+    size=args['size']
 
 
 
-mysprite=myspritetools.Sprite(game,object,frame,size=size)
+    mysprite=myspritetools.Sprite(game,object,frame,size=size)
 
-if args['rotations']>1:
-    mysprite.save_rotations(int(360/args['rotations']))
+    if args['rotations']>1:
+        mysprite.save_rotations(int(360/args['rotations']))
 
-init_pos=myimutils.capture_point(background[0])
-path=[]
-for i in range(len(background)):
-    chimin,dx,dy,imnum,indices=mysprite.fit(background[i],init_pos,args['range'])
-    if chimin>args['threshold']:
-        chimin,dx,dy,imnum,indices=mysprite.fit(background[i],init_pos,background[i].shape[0]*2)
-    init_pos=(init_pos[0]-dx,init_pos[1]-dy)
-    if chimin<args['threshold']:
-        path.append(init_pos)        
-    else:
-        path.append((-1,-1))
+    init_pos=myimutils.capture_point(background[0])
+    path=[]
+    for i in range(len(background)):
+        if i<0:
+            pos_guess=(init_pos[0]+path[i-1][0]-path[i-2][0],init_pos[1]+path[i-1][1]-path[i-2][1])
+        else:
+            pos_guess=init_pos
+        chimin,dx,dy,imnum,indices=mysprite.fit(background[i],pos_guess,args['range'])
+        if chimin>args['threshold']:
+            print('Frame '+str(i))
+            pos_guess=myimutils.capture_point(background[i])
+            chimin,dx,dy,imnum,indices=mysprite.fit(background[i],pos_guess,args['range'])
+           # chimin,dx,dy,imnum,indices=mysprite.fit(background[i],pos_guess,background[i].shape[0]*2)
+        init_pos=(pos_guess[0]-dx,pos_guess[1]-dy)
+        if chimin<args['threshold']:
+            path.append(init_pos)        
+        else:
+            path.append((-1,-1))
 
-spath=myspritetools.sprite_path(path)
-spath.smooth(3)
-background=spath.overlay(background)
-myimutils.gif_viewer(background,durations,'Path')
-background=myimutils.convert_to_PIL(background)
-myimutils.write_animation(background,durations,args['outfile'])
+    spath=myspritetools.sprite_path(path)
+    speeds=spath.find_speeds()
+    spath.smooth(args['smooth'])
+    background=spath.overlay(background)
+    myimutils.gif_plot(spath.speed,background,durations)
+    background=myimutils.convert_to_PIL(background)
+    myimutils.write_animation(background,durations,args['outfile'])
 

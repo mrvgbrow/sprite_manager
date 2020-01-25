@@ -20,6 +20,13 @@ def color_distance(image1,image2):
     color_dist=np.sqrt(color_dist)
     return color_dist
 
+def color_distance_1d(var1,var2):
+    var1=var1.astype('int')
+    var2=var2.astype('int')
+    color_dist=(var1[:,0]-var2[:,0])**2+(var1[:,1]-var2[:,1])**2+(var1[:,2]-var2[:,2])**2
+    color_dist=np.sqrt(color_dist)
+    return color_dist
+
 def color_combine(image):
     im=np.zeros([image.shape[0],image.shape[1]],'int')
     im=1000000*image[...,0].astype('int')+1000*image[...,1].astype('int')+image[...,2].astype('int')
@@ -75,3 +82,21 @@ def color_to_RGB(string):
 def color_to_BGR(string):
     color=colorsRGB.get(string)
     return (color[2],color[1],color[0])
+
+def mean_color(array):
+    array=np.array(array)
+    mean=np.mean(array,axis=0)
+    return mean
+
+def median_color(array):
+    array=np.array(array)
+    median=np.median(array,axis=0)
+    return median
+
+def color_spread(array):
+    color_mean=np.array([mean_color(array)])
+    distances=[]
+    for i in range(len(array)):
+        distances.append(color_distance_1d(np.array([array[i]]),color_mean))
+    color_spread=np.mean(distances)
+    return color_spread
