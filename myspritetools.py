@@ -292,6 +292,10 @@ class Sprite:
             self.data[i]=new_arr
         self.recenter()
 
+    def overlay_frame(self,image,pos,frame):
+        image=myim.add_images(self.data[frame],image,pos[0],pos[1])
+        return image
+
     def overlay(self,background,path,frames=0):
         pace_count=-1
         s_index=-1

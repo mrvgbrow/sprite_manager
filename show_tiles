@@ -1,0 +1,29 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import numpy as np
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import mycolortools as mycolor
+import tiletools as tt
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("game",help="Game that tileset is from",type=str)
+ap.add_argument("map",help="Name of the specific tileset",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output PNG file",default='default.png')
+ap.add_argument("-x","--sizex",required=False,help="Number of tiles in the x direction",type=int,default=30)
+ap.add_argument("-y","--sizey",required=False,help="Number of tiles in the y direction",type=int,default=8)
+ap.add_argument("-z","--zoom",required=False,help="Zoom factor for tilemap/tileset display",type=int,default=3)
+ap.add_argument("-b","--border",required=False,help="Size of the border between tiles (in pixels)",type=int,default=0)
+args=vars(ap.parse_args())
+
+tileset=tt.tileset(args['map'],game=args['game'])
+tileset.resize(tileset.tilesize[0]*args['zoom'])
+img=tileset.make_tileset_img(args['sizex'],args['sizey'],border=args['border'])
+shape=img.shape
+tilesize=tileset.tilesize[0]
+
+myim.img_viewer(img)
+cv2.imwrite(args['outfile'],img)
