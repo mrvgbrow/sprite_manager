@@ -1,0 +1,111 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import numpy as np
+import cv2
+from PIL import Image
+import myimutils as myim
+import genutils as genu
+import sys
+import argparse
+import mycolortools as mycolor
+import tiletools as tt
+
+def move_img(event,x,y,flags,param):
+    global refPt_img,clicked
+    if event == cv2.EVENT_MOUSEMOVE:
+        refPt_img=(x,y)
+    if event == cv2.EVENT_LBUTTONDOWN:
+        clicked=1
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("game",help="Game that tileset is from",type=str)
+ap.add_argument("map",help="Name of the specific tileset",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output GIF file",default='test.gif')
+ap.add_argument("-d","--outdat",required=False,help="Name of the output data file with tile numbers",default='default.tdat')
+ap.add_argument("-i","--infile",required=False,help="Name of the input text file with tile data (if none, use interactive mode)",type=str,default='None')
+ap.add_argument("-x","--sizex",required=False,help="Number of tiles in the x direction",type=int,default=30)
+ap.add_argument("-y","--sizey",required=False,help="Number of tiles in the y direction",type=int,default=8)
+ap.add_argument("-z","--zoom",required=False,help="Zoom factor for tilemap/tileset display",type=int,default=3)
+ap.add_argument("-n","--nframe",required=False,help="Number of frames for each animated tile.",type=int,default=5)
+ap.add_argument("-l","--lines",required=False,help="Number of lines to fill with tiles at the bottom.",type=int,default=3)
+ap.add_argument("-b","--border",required=False,help="Size of border around the tiles in pixels.",type=int,default=1)
+args=vars(ap.parse_args())
+
+border=args['border']
+tileset=tt.tileset(args['map'],game=args['game'])
+tileset.resize(tileset.tilesize[0]*args['zoom'])
+img=tileset.make_tileset_img(args['sizex'],args['sizey'],border=border)
+shape=img.shape
+tilesize=tileset.tilesize[0]
+composite=np.zeros(((args['sizey']+args['lines']+border)*tilesize,(args['sizex']+border)*tilesize+1,3),dtype='uint8')
+composite[0:shape[0],0:shape[1],0:shape[2]]=img
+
+
+clicked=0
+tiles=[]
+tiles0=[]
+positions=[]
+posy=(args['sizey'])*tilesize
+posx=0
+
+if args['infile']=='None':
+    cv2.namedWindow("destination image")
+    cv2.setMouseCallback("destination image",move_img)
+    refPt_img=(0,0)
+    while True:
+        cv2.imshow('destination image',composite)
+        key = cv2.waitKey(1) & 0xFF
+
+        if clicked==1:
+            tilenum,newPt=tileset.pos_to_tile(refPt_img,nx=args['sizex'],border=args['border'])
+            tiles.extend([tilenum]*args['nframe'])
+            tiles0.append(tilenum)
+            positions.extend(genu.sample_line(newPt,(posx,posy),args['nframe']))
+            clicked=0
+            posx+=tilesize
+#        img=tileset.place_tile(img,tilenum,refPt_img)
+        if key==ord('y'):
+            posy+=tilesize
+            posx=0
+        if key==ord('x'):
+            break
+
+    f=open(args['outdat'],"w")
+    for i in range(len(tiles0)):
+        f.write(str(tiles0[i])+"\n")
+    f.close()
+    cv2.destroyAllWindows()
+else:
+    ftiles=tt.read_tile_file(args['infile'])
+    for tile in ftiles[0]:
+        if tile==-1:
+            posy+=tilesize
+            posx=0
+            continue
+        tiles.extend([tile]*args['nframe'])
+        positions.extend(genu.sample_line(tileset.tile_to_pos(tile,nx=args['sizex']),(posx,posy),args['nframe']))
+        posx+=tilesize
+
+imlist=[]
+i=0
+tile_count=0
+composite0=np.copy(composite)
+for position in positions:
+    imlist.append(np.copy(composite))
+    imlist[i][position[1]:position[1]+tilesize,position[0]:position[0]+tilesize,0:3]=tileset.tiles[tiles[i]]
+    tile_count=(tile_count+1)%args['nframe']
+    if tile_count==0:
+        composite=imlist[i]
+    i+=1
+
+durations=[10]*len(imlist)
+
+if args['infile'] != 'None' and len(ftiles)>0:
+    for i in range(1,len(ftiles)):
+        imlist.append(tileset.lay_tiles(composite0.copy(),ftiles[i],init_pos=(0,tilesize*args['sizey'])))
+        durations.append(300)
+
+myim.gif_viewer(imlist,durations,'Result')
+imlist=myim.convert_to_PIL(imlist)
+myim.write_animation(imlist,durations,args['outfile'],pil=0)
