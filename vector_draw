@@ -1,6 +1,7 @@
 #!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 
 import cv2
+import os
 import myimutils as myim
 import sys
 import argparse
@@ -11,35 +12,51 @@ import mycolortools as mycolor
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input image to draw from",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='test.gif')
+ap.add_argument("-v","--voutfile",required=False,help="Name of the vector/point output file",default='default.vdat')
 ap.add_argument("-c","--color",required=False,help="Line color.",type=str,default='white')
 ap.add_argument("-f","--frames",required=False,help="Animation frames per line.",type=int,default=3)
 ap.add_argument("-e","--expandfac",required=False,help="Factor by which the final animation is larger than the original sprite.",type=int,default=3)
-ap.add_argument("-l","--linewidth",required=False,help="Width of draw line.",type=int,default=5)
+ap.add_argument("-l","--linewidth",required=False,help="Width of draw line.",type=int,default=1)
 args=vars(ap.parse_args())
 
-imlist1,durations = myim.read_imdir(args['infile'])
-
-box=myim.capture_box(imlist1[0])
-points=[]
+name,file_extension=os.path.splitext(args['infile'])
 xlist=[]
 ylist=[]
-while True:
-    point=myim.capture_point(imlist1[0][box[0][1]:box[1][1],box[0][0]:box[1][0]],mode=1)
-    if point == (0,0):
-        break
-    point_expand=(point[0]*args['expandfac'],point[1]*args['expandfac'])
-    points.append(point_expand)
-    xlist.append(point_expand[0])
-    ylist.append(point_expand[1])
+points=[]
+if file_extension=='.png':
+    imlist1,durations = myim.read_imdir(args['infile'])
 
-padfac=2
+    box=myim.capture_box(imlist1[0])
+    while True:
+        point=myim.capture_point(imlist1[0][box[0][1]:box[1][1],box[0][0]:box[1][0]],mode=1)
+        if point == (0,0):
+            break
+        point_expand=(point[0]*args['expandfac'],point[1]*args['expandfac'])
+        points.append(point_expand)
+        xlist.append(point_expand[0])
+        ylist.append(point_expand[1])
+    f=open(args['voutfile'],"w")
+    for i in range(len(xlist)):
+        f.write(str(xlist[i])+","+str(ylist[i])+"\n")
+    f.close()
+else:
+    f=open(args['infile'],"r")
+    fl=f.readlines()
+    for line in fl:
+        (x,y)=line.split(",")
+        xlist.append(int(x))
+        ylist.append(int(y))
+        points.append((int(x),int(y)))
+    f.close()
+
+padfac=1.5
 shape1=int((max(ylist)-min(ylist))*padfac)
 shape2=int((max(xlist)-min(xlist))*padfac)
 raypoint=(int(0.15*shape2),int(0.15*shape1))
 imlist1=[]
 durations=[]
-x_norm=min(xlist)-int(0.25*shape2)
-y_norm=min(ylist)-int(0.25*shape1)
+x_norm=min(xlist)-int(0.5*shape2/padfac*(padfac-1))
+y_norm=min(ylist)-int(0.5*shape1/padfac*(padfac-1))
 im_ref=np.zeros((shape1,shape2,3),'uint8')
 color=mycolor.color_to_BGR(args['color'])
 bluecolor=mycolor.color_to_BGR('blue')
