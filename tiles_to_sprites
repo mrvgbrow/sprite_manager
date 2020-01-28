@@ -1,0 +1,66 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import numpy as np
+import cv2
+from PIL import Image
+import myimutils as myim
+import genutils as genu
+import sys
+import argparse
+import mycolortools as mycolor
+import myspritetools
+import tiletools as tt
+
+def move_img(event,x,y,flags,param):
+    global refPt_img,clicked
+    if event == cv2.EVENT_MOUSEMOVE:
+        refPt_img=(x,y)
+    if event == cv2.EVENT_LBUTTONDOWN:
+        clicked=1
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("game",help="Game that tileset is from",type=str)
+ap.add_argument("map",help="Name of the specific tileset",type=str)
+ap.add_argument("object",help="Name of the object to save the sprites to",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output GIF file",default='test.gif')
+ap.add_argument("-s","--tilesize",required=False,help="Size of the tiles, in pixels",type=int,default=8)
+ap.add_argument("-f","--fuzz",required=False,help="Fuzz of the background color replacement",type=int,default=0)
+args=vars(ap.parse_args())
+
+tileset=tt.tileset(args['map'],game=args['game'],tilesize=(args['tilesize'],args['tilesize']))
+img=tileset.make_tileset_img(10,30)
+shape=img.shape
+tilesize=tileset.tilesize[0]
+
+cv2.namedWindow("tileset",flags=cv2.WINDOW_NORMAL)
+cv2.setMouseCallback("tileset",move_img)
+refPt_img=(0,0)
+
+clicked=0
+tiles=[]
+while True:
+    cv2.imshow('tileset',img)
+    key = cv2.waitKey(1) & 0xFF
+
+    if clicked==1:
+        tilenum,newPt=tileset.pos_to_tile(refPt_img,nx=10)
+        tiles.append(tilenum)
+        clicked=0
+    if key==ord('x'):
+        break
+
+cv2.destroyAllWindows()
+print(tiles)
+color_background=mycolor.imshow_get_color(img,'Select Background Color','x')
+
+frame=0
+for tile in tiles:
+    tile_img=tileset.tiles[tile]
+    indices=mycolor.select_color(tile_img,color_background,args['fuzz'],invert=True)
+    mask=myim.make_mask(indices,tile_img.shape)
+    image_trans=myim.maketransparent_withmask(tile_img,mask)
+    numstr="{0:04d}".format(frame)
+    myspritetools.add_sprite_image(image_trans,args['game'],args['object'],numstr)
+    frame+=1
+

@@ -23,6 +23,8 @@ ap.add_argument("-s","--size",required=False,help="The sprite size scale factor"
 ap.add_argument("-q","--sequence",required=False,help="Name of the animation sequence to use",type=str,default='None')
 ap.add_argument("-a","--anchor",required=False,help="Where to anchor the sprite sequence (0: center, 1: bottom, 3: top)",type=int,default=0)
 ap.add_argument("-r","--rotate",required=False,help="The sprite rotation rate",type=float,default=0.0)
+ap.add_argument("-l","--flip",required=False,help="Flip axis (0:None,1:horizontal,2:vertical)",type=int,default=0)
+ap.add_argument("-t","--text",required=False,help="Text string to label sprite with",type=str,default='')
 args=vars(ap.parse_args())
 
 game=args['game']
@@ -35,17 +37,21 @@ rotate=args['rotate']
 sequence=args['sequence']
 anchor=args['anchor']
 center=args['center']
+flip=args['flip']
+text=args['text']
 
 if args['infile'] != 'blank':
     (background,durations)=myimutils.read_imdir(args['infile'])
+    path=myspritetools.sprite_path([0])
+    path.input_path(background)
     if len(background)==1:
         background=[background[0]]*100
 
 if args['infile']=='blank':
-    new_frames=myspritetools.add_sprite_blank(game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center)
+    new_frames=myspritetools.add_sprite_blank(game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center,flip=flip,text=text)
     durations=[10]*len(new_frames)
 else:
-    new_frames=myspritetools.add_sprite(background,game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center)
+    new_frames=myspritetools.add_sprite(background,game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center,flip=flip,path=path)
 dum=myimutils.gif_viewer(new_frames,durations,'Result')
 new_frames=myimutils.convert_to_PIL(new_frames)
 myimutils.write_animation(new_frames,durations,outfile)
