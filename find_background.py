@@ -35,6 +35,6 @@ for im in imlist1:
 #    mask=myimutils.make_mask(indices,imlist1[i].shape)
 #    imlist1[i]=myimutils.maketransparent_withmask(imlist1[i],mask)
     i+=1
-cv2.imwrite(args['outfile'],image)
+cv2.imwrite(args['outfile'],image_mode)
 imlist1=myimutils.convert_to_PIL(imlist1)
 myimutils.write_animation(imlist1,durations,args['outgif'])

@@ -10,6 +10,7 @@ import numpy as np
 import os
 import imutils
 import sys
+import mycolortools as mycolor
 import genutils as genu
 import myimutils as myim
 from scipy import ndimage
@@ -88,6 +89,12 @@ class sprite_path:
             self.speed.append(self.path_length(i+1,i-1)/2)
         self.speed.append(self.path_length(len(self.path)-1,len(self.path)-2))
         return self.speed
+
+    def write_path(self,outfile):
+        f=open(outfile,'w')
+        for i in range(len(self.path)):
+            f.write(str(self.path[i][0])+","+str(self.path[i][1])+"\n")
+        f.close()
             
 
 
@@ -111,6 +118,27 @@ class Sprite:
             self.read_image(self.full_path)
         self.sequence=range(len(self.data))
         self.resize(size)
+        self.read_colors()
+
+    def read_colors(self):
+        colorfile=self.full_path+'/colors.txt'
+        if os.path.isfile(colorfile)==0:
+            self.colors={}
+            return
+        f=open(colorfile,'r')
+        fl=f.readlines()
+        self.colors={}
+        i=0
+        for line in fl:
+            name,vals=line.split('-')
+            name=name.rstrip()
+            colors=vals.split(',')
+            for j in range(len(colors)):
+                colors[j]=int(colors[j])
+            self.colors[name]=colors
+            if i==0:
+                self.colors['Active']=self.colors[name]
+            i+=1
         
     def read_image(self,path):
         if os.path.isfile(path)==False:
@@ -120,6 +148,22 @@ class Sprite:
         self.data.append(data)
         self.recenter()
         self.n_image=1
+
+    def list_colors(self):
+        color_list=[]
+        for i in range(self.n_image):
+            frame_comb=mycolor.color_combine(self.data[i])
+            print(np.unique(frame_comb))
+
+    def swap_colors(self,newcolor):
+        color_list=[]
+        for i in range(self.n_image):
+            frame_comb=mycolor.color_combine(self.data[i])
+            for j in range(len(self.colors[newcolor])):
+                inds=np.nonzero(frame_comb==self.colors['Active'][j])
+                frame_comb[inds]=self.colors[newcolor][j]
+            self.data[i]=mycolor.color_expand(frame_comb)
+        self.colors['Active']=self.colors[newcolor]
 
     def read_dir(self,path):
         if os.path.isdir(path)==False:
@@ -292,13 +336,17 @@ class Sprite:
             self.data[i]=new_arr
         self.recenter()
 
-    def overlay_frame(self,image,pos,frame):
-        image=myim.add_images(self.data[frame],image,pos[0],pos[1])
+    def overlay_frame(self,image,pos,frame,center=1):
+        if center==1:
+            centerpos=myim.force_in_image(image,(pos[0]-int(self.center[frame][0]),pos[1]-int(self.center[frame][1])))
+            image=myim.add_images(self.data[frame],image,centerpos[0],centerpos[1])
+        else:
+            image=myim.add_images(self.data[frame],image,pos[0],pos[1])
         return image
 
     def overlay(self,background,path,frames=0):
         pace_count=-1
-        s_index=-1
+        s_index=0
         if frames==0:
             frames=len(background)
         else:
@@ -386,7 +434,6 @@ def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0]
         text_pos_y=int(blank_size/6)
         for i in range(len(images)):
             cv2.putText(images[i],text,(text_pos_x,text_pos_y),cv2.FONT_HERSHEY_SIMPLEX,fontsize,(255,255,255),1,cv2.LINE_AA)
-    print(mysprite.nframes())
     if path==[0] and center==0:
         path=myim.capture_point(images[0])
     if path==[0] and center==1:

@@ -27,4 +27,4 @@ for i in range(len(imlist1)):
 
 myim.gif_viewer(imlist1,durations,'Result')
 imlist1=myim.convert_to_PIL(imlist1)
-myim.write_animation(imlist1,durations,args['outfile'])
+myim.write_animation(imlist1,durations,args['outfile'],pil=0)

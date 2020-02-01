@@ -1,5 +1,6 @@
 import math
 import imageio
+import genutils as genu
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,12 +18,26 @@ def add_images(image2,image1,x,y):
         image3[y1:y2,x1:x2,c]=(image2[:y2-y1,:x2-x1,3]/255.0*image2[:y2-y1,:x2-x1,c]+(1.0-image2[:y2-y1,:x2-x1,3])*image1[y1:y2,x1:x2,c])
     return image3.astype('uint8')
 
+def overlay_two(image2,image1,im2frac):
+    image3=image1.copy()
+    for c in range(0,3):
+        image3[:,:,c]=(im2frac*image2[:,:,c]+(1.0-im2frac)*image1[:,:,c])
+    return image3.astype('uint8')
+
 def add_alpha_channel(images):
     x_size=images[0].shape[0]
     y_size=images[0].shape[1]
     for i in range(len(images)):
         images[i]=np.dstack((images[i],np.ones((x_size,y_size),'uint8')*255))
     return images
+
+def fade_ims(ims1,ims2):
+    nframes=len(ims1)
+    alphas=genu.sample_line((0.,255.),(255.,0.),nframes)
+    ims3=[]
+    for i in range(nframes):
+        ims3.append(overlay_two(ims1[i],ims2[i],alphas[i][1]/255.))
+    return ims3
 
 def get_overlap(image1,image2,x,y):
     xlim=image1.shape[1]
@@ -474,6 +489,15 @@ def check_in_image(image,refPt,shape):
         return False
     return True
 
+def force_in_image(image,refPt):
+    xnew=refPt[0]
+    ynew=refPt[1]
+    if (xnew<0):
+        xnew=0
+    if ynew<0:
+        ynew=0
+    return (xnew,ynew)
+
 def remove_near_boundary(image,indices,offset_range):
     dimens=image.shape
     indices_of_indices=np.nonzero((indices[0]>offset_range) & (indices[0]<dimens[0]-offset_range) & (indices[1]>offset_range) & (indices[1]<dimens[1]-offset_range))
@@ -556,3 +580,14 @@ def find_offset(array1,array2,indices,direction=1,offset_range=3):
             most_matches=nmatch
             offset_ref=offset
     return offset_ref
+
+def axis_ratio_34(inrat):
+    dy,dx=inrat.split('x')
+    if int(dy)>int(dx):
+        fx=int(dy)/int(dx)*3/4
+        fy=1
+    else:
+        fy=int(dx)/int(dy)*3/4
+        fx=1
+    return (fx,fy)
+
