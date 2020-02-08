@@ -7,14 +7,15 @@ import numpy as np
 import argparse
 import myimutils
 import myargutils
-import myspritetools
+import myspritetools as myspr
 import time
 from PIL import ImageSequence, Image, ImageOps
 
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input background file",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
-ap.add_argument("-p","--pace",required=False,help="Speed at which the sprite sequence moves",default=1,type=int)
+ap.add_argument("-p","--pace",required=False,help="Number of frames of the final animation per sprite frame",default=1,type=int)
+ap.add_argument("-d","--duration",required=False,help="Duration of each frame",default=1,type=int)
 ap.add_argument("game",help="Name of the game the sprite is from",type=str)
 ap.add_argument("object",help="Name of the object the sprite represents",type=str)
 ap.add_argument("-f","--frame",required=False,help="The particular frame in the sprite sequence",type=str,default='all')
@@ -24,6 +25,7 @@ ap.add_argument("-q","--sequence",required=False,help="Name of the animation seq
 ap.add_argument("-a","--anchor",required=False,help="Where to anchor the sprite sequence (0: center, 1: bottom, 3: top)",type=int,default=0)
 ap.add_argument("-r","--rotate",required=False,help="The sprite rotation rate",type=float,default=0.0)
 ap.add_argument("-l","--flip",required=False,help="Flip axis (0:None,1:horizontal,2:vertical)",type=int,default=0)
+ap.add_argument("-i","--pil",required=False,help="Use PIL?",type=int,default=1)
 ap.add_argument("-t","--text",required=False,help="Text string to label sprite with",type=str,default='')
 args=vars(ap.parse_args())
 
@@ -39,19 +41,25 @@ anchor=args['anchor']
 center=args['center']
 flip=args['flip']
 text=args['text']
+pil=args['pil']
 
 if args['infile'] != 'blank':
     (background,durations)=myimutils.read_imdir(args['infile'])
-    path=myspritetools.sprite_path([0])
-    path.input_path(background)
+    path=myspr.sprite_path([0])
     if len(background)==1:
-        background=[background[0]]*100
+        tempsprite=myspr.Sprite(game,object,frame)
+        tempsprite.read_sequence(sequence)
+        background=[background[0]]*tempsprite.nframes()
+        durations=[10*args['duration']]*len(background)
+        pil=0
+    path.input_path(background)
 
 if args['infile']=='blank':
-    new_frames=myspritetools.add_sprite_blank(game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center,flip=flip,text=text)
-    durations=[10]*len(new_frames)
+    center=1
+    new_frames=myspr.add_sprite_blank(game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center,flip=flip,text=text)
+    durations=[10*args['duration']]*len(new_frames)
 else:
-    new_frames=myspritetools.add_sprite(background,game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center,flip=flip,path=path)
+    new_frames=myspr.add_sprite(background,game,object,size=size,pace=pace,rotate=rotate,frame=frame,sequence=sequence,anchor=anchor,center=center,flip=flip,path=path)
 dum=myimutils.gif_viewer(new_frames,durations,'Result')
 new_frames=myimutils.convert_to_PIL(new_frames)
-myimutils.write_animation(new_frames,durations,outfile)
+myimutils.write_animation(new_frames,durations,outfile,pil=pil)

@@ -486,29 +486,10 @@ def capture_path_full(images):
     increment=(0,0)
     size_increment=(0,0)
     angle_increment=0
+    path=fill_path(path)
+    path=[(int(p[0]),int(p[1])) for p in path]
+    size=fill_path(size)
     for i in range(len(images)):
-        if (path[i]==(-2,-2)):
-            position=(position[0]+increment[0],position[1]+increment[1])
-            path[i]=(int(position[0]),int(position[1]))
-        else:
-            position=path[i]
-            for j in range(i+1,len(images)):
-                if path[j]!=(-2,-2):
-                    pathdiff=(path[j][0]-path[i][0],path[j][1]-path[i][1])
-                    increment=(pathdiff[0]/(j-i),pathdiff[1]/(j-i))
-                    break
-                increment=(0,0)
-        if (size[i]==(-2,-2)):
-            nowsize=(nowsize[0]+size_increment[0],nowsize[1]+size_increment[1])
-            size[i]=(float(nowsize[0]),float(nowsize[1]))
-        else:
-            nowsize=size[i]
-            for j in range(i+1,len(images)):
-                if size[j]!=(-2,-2):
-                    sizediff=(size[j][0]-size[i][0],size[j][1]-size[i][1])
-                    size_increment=(sizediff[0]/(j-i),sizediff[1]/(j-i))
-                    break
-                size_increment=(0,0)
         if (angle[i]==-2):
             nowangle=nowangle+angle_increment
             angle[i]=float(nowangle)
@@ -522,6 +503,22 @@ def capture_path_full(images):
                 angle_increment=0
     cv2.destroyAllWindows()
     return path,size,angle
+
+def fill_path(array,nullval=(-2,-2)):
+    nowarr=array[0]
+    increment=array[0]*0
+    for i in range(len(array)):
+        if (array[i]==nullval):
+            nowarr=(nowarr[0]+increment[0],nowarr[1]+increment[1])
+            array[i]=(nowarr[0],nowarr[1])
+        else:
+            nowarr=array[i]
+            for j in range(i+1,len(array)):
+                if array[j]!=nullval:
+                    arrdiff=(array[j][0]-array[i][0],array[j][1]-array[i][1])
+                    increment=(arrdiff[0]/(j-i),arrdiff[1]/(j-i))
+                    break
+    return array
 
 def rotate_image(mat, angle):
     """

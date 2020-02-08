@@ -5,39 +5,68 @@ import myimutils as myim
 import sys
 import argparse
 import numpy as np
+import math
 
 
 ap = argparse.ArgumentParser()
 ap.add_argument("infile1",help="Name of the first input animation",type=str)
 ap.add_argument("infile2",help="Name of the second input animation",type=str)
-ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='temp.gif')
+ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='default.gif')
 ap.add_argument("-d","--duration",required=False,help="The frame delay (must be constant)",type=float,default=10)
+ap.add_argument("-s","--stop",required=False,help="Stop shorter animation while other is finishing?",type=int,default=0)
+ap.add_argument("-b","--border",required=False,help="Width of border to put between the images",type=int,default=0)
+ap.add_argument("-l","--location",required=False,help="Side on which to place the second gif (1=right,2=top,3=left,4=bottom)",type=int,default=1)
 args=vars(ap.parse_args())
 
-imlist1,durations1 = myim.read_gif(args['infile1'])
-imlist2,durations2 = myim.read_gif(args['infile2'])
+imlist1,durations1 = myim.read_imdir(args['infile1'])
+imlist2,durations2 = myim.read_imdir(args['infile2'])
 shape1=imlist1[0].shape
 shape2=imlist2[0].shape
-shape_new=(max(shape1[0],shape2[0]),shape1[1]+shape2[1],3)
+nc=shape1[2]
+b=args['border']
+loc=args['location']
+if loc==1 or loc==3:
+    shape_new=(max(shape1[0],shape2[0]),shape1[1]+shape2[1]+args['border'],nc)
+if loc==2 or loc==4:
+    shape_new=(shape1[0]+shape2[0]+args['border'],max(shape1[1],shape2[1]),nc)
 print(shape_new)
+
 
 i=0
 j=0
 imlist3=[]
-print(len(imlist1),len(imlist2))
-for k in range(max(len(imlist1),len(imlist2))):
-    img_new=np.zeros(shape_new,'uint8')
-    img_new[0:shape1[0],0:shape1[1],0:3]=imlist1[i]
-    img_new[0:shape2[0],shape1[1]:shape1[1]+shape2[1],0:3]=imlist2[j]
+if args['stop']==0:
+    gcd=math.gcd(len(imlist1),len(imlist2))
+    nframes=int(len(imlist1)*len(imlist2)/gcd)
+    ifac=int(nframes/len(imlist1))
+    jfac=int(nframes/len(imlist2))
+    print(gcd,ifac,jfac)
+else:
+    nframes=max([len(imlist1),len(imlist2)])
+    ifac=1
+    jfac=1
+print(nframes)
+for k in range(nframes):
+    img_new=np.ones(shape_new,'uint8')*255
+    if loc==1 or loc==4:
+        img_new[0:shape1[0],0:shape1[1],0:nc]=imlist1[i]
+    if loc==2 or loc==3:
+        img_new[0:shape2[0],0:shape2[1],0:nc]=imlist2[j]
+    if loc==1:
+        img_new[0:shape2[0],b+shape1[1]:b+shape1[1]+shape2[1],0:nc]=imlist2[j]
+    if loc==2:
+        img_new[b+shape2[0]:b+shape2[0]+shape1[0],0:shape1[1],0:nc]=imlist1[i]
+    if loc==3:
+        img_new[0:shape1[0],b+shape2[1]:b+shape2[1]+shape1[1],0:nc]=imlist1[i]
+    if loc==4:
+        img_new[b+shape1[0]:b+shape1[0]+shape2[0],0:shape2[1],0:nc]=imlist2[j]
     imlist3.append(img_new)
-    if i<len(imlist1)-1:
-        i+=1
-    else:
-        i=0
-    if j<len(imlist2)-1:
-        j+=1
-    else:
-        j=0
+    if k%jfac==0:
+        if j<len(imlist2)-1:
+            j+=1
+    if k%ifac==0:
+        if i<len(imlist1)-1:
+            i+=1
 
 imlist1=None
 imlist2=None
@@ -45,4 +74,4 @@ durations3=[args['duration']]*len(imlist3)
 
 myim.gif_viewer(imlist3,durations3,'Result')
 imlist3=myim.convert_to_PIL(imlist3)
-myim.write_animation(imlist3,durations3,args['outfile'])
+myim.write_animation(imlist3,durations3,args['outfile'],pil=1)
