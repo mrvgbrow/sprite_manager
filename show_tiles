@@ -16,10 +16,12 @@ ap.add_argument("-o","--outfile",required=False,help="Name of the output PNG fil
 ap.add_argument("-x","--sizex",required=False,help="Number of tiles in the x direction",type=int,default=30)
 ap.add_argument("-y","--sizey",required=False,help="Number of tiles in the y direction",type=int,default=8)
 ap.add_argument("-z","--zoom",required=False,help="Zoom factor for tilemap/tileset display",type=int,default=3)
+ap.add_argument("-s","--size",required=False,help="Tile Size",type=int,default=8)
 ap.add_argument("-b","--border",required=False,help="Size of the border between tiles (in pixels)",type=int,default=0)
 args=vars(ap.parse_args())
 
-tileset=tt.tileset(args['map'],game=args['game'])
+size=args['size']
+tileset=tt.tileset(args['map'],game=args['game'],tilesize=(size,size))
 tileset.resize(tileset.tilesize[0]*args['zoom'])
 img=tileset.make_tileset_img(args['sizex'],args['sizey'],border=args['border'])
 shape=img.shape

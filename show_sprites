@@ -12,9 +12,10 @@ import argparse
 ap = argparse.ArgumentParser()
 ap.add_argument("game",help="Name of the game the sprite is from",type=str)
 ap.add_argument("object",help="Name of the object the sprite represents",type=str)
-ap.add_argument("-x","--sizex",required=False,help="Number of pixels in the x direction",type=int,default=300)
-ap.add_argument("-y","--sizey",required=False,help="Number of pixels in the y direction",type=int,default=150)
+ap.add_argument("-x","--sizex",required=False,help="Number of sprites in the x direction",type=int,default=300)
+ap.add_argument("-y","--sizey",required=False,help="Number of sprites in the y direction",type=int,default=150)
 ap.add_argument("-z","--zoom",required=False,help="Zoom factor for sprite images",type=int,default=3)
+ap.add_argument("-p","--pad",required=False,help="Pixels between sprites",type=int,default=0)
 ap.add_argument("-c","--color",required=False,help="Background color",type=str,default='black')
 ap.add_argument("-o","--outfile",required=False,help="Name of the output image file",default='default.png')
 args=vars(ap.parse_args())
@@ -23,16 +24,18 @@ game=args['game']
 object=args['object']
 mysprite=myspr.Sprite(game,object,'all')
 mysprite.resize(args['zoom'])
-imsize_x=args['sizex']*args['zoom']
-imsize_y=args['sizey']*args['zoom']
-new_img=np.zeros((imsize_y,imsize_x,3),dtype='uint8')
-nsprites=len(mysprite.data)
 (dum,diffx,diffy)=mysprite.maxsize()
-nx=int(imsize_x/diffx)
+nsprites=len(mysprite.data)
+imsize_x=args['sizex']*(diffx+args['pad'])
+imsize_y=args['sizey']*(diffy+args['pad'])
+new_img=np.zeros((imsize_y,imsize_x,3),dtype='uint8')
+nx=args['sizex']
 for i in range(nsprites):
-    pos_x=(i%nx)*diffx
-    pos_y=int(i/nx)*diffy
+    pos_x=(i%nx)*(diffx+args['pad'])+int(diffx/2)
+    pos_y=int(i/nx)*(diffy+args['pad'])+int(diffy/2)
     pos_try=(pos_x,pos_y)
+    print(pos_try, imsize_x,imsize_y)
     new_img=mysprite.overlay_frame(new_img,pos_try,i)
 
 myim.img_viewer(new_img)
+cv2.imwrite(args['outfile'],new_img)

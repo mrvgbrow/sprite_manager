@@ -4,6 +4,7 @@ import genutils as genu
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import mycolortools as mycolor
 import os
 import sys
 import time
@@ -15,7 +16,7 @@ def add_images(image2,image1,x,y):
     x1,x2,y1,y2=get_overlap(image1,image2,x,y)
     image3=image1.copy()
     for c in range(0,3):
-        image3[y1:y2,x1:x2,c]=(image2[:y2-y1,:x2-x1,3]/255.0*image2[:y2-y1,:x2-x1,c]+(1.0-image2[:y2-y1,:x2-x1,3])*image1[y1:y2,x1:x2,c])
+        image3[y1:y2,x1:x2,c]=(image2[:y2-y1,:x2-x1,3]/255.0*image2[:y2-y1,:x2-x1,c]+(1.0-image2[:y2-y1,:x2-x1,3]/255.0)*image1[y1:y2,x1:x2,c])
     return image3.astype('uint8')
 
 def overlay_two(image2,image1,im2frac):
@@ -269,6 +270,8 @@ def mask_replace(image,mask,color):
     image[mask_indices[0],mask_indices[1],0] = color[0]
     image[mask_indices[0],mask_indices[1],1] = color[1]
     image[mask_indices[0],mask_indices[1],2] = color[2]
+    if len(color)>3:
+        image[mask_indices[0],mask_indices[1],3] = color[3]
     return image
 
 def convert_to_PIL(list_np_array):
@@ -328,7 +331,7 @@ def img_viewer(image,title='Image',mode=0):
             break
     cv2.destroyAllWindows()
 
-def gif_plot(y,images,durations,title='',pause=0):
+def gif_plot(y,images,durations,title='',pause=0,xlabel='x',ylabel='y',xmin='None',ymin='None',xmax='None',ymax='None'):
 #    xarr=pfunc.setup_plot(y,xlabel='frame',title=title)
     dpi=200
     figsize=(images[0].shape[0]/dpi*1.4,images[0].shape[0]/dpi)
@@ -341,9 +344,17 @@ def gif_plot(y,images,durations,title='',pause=0):
     plt.xticks(size=3)
     plt.yticks(size=3)
     plt.tight_layout()
-    plt.axis([0,np.max(x),0,np.max(y)])
-    plt.ylabel('speed (pix/frame)',size=5)
-    plt.xlabel('Frame',size=5)
+    if type(xmin)==str:
+        xmin=np.min(x)
+    if type(xmax)==str:
+        xmax=np.max(x)
+    if type(ymin)==str:
+        ymin=np.min(y)
+    if type(ymax)==str:
+        ymax=np.max(y)
+    plt.axis([xmin,xmax,ymin,ymax])
+    plt.ylabel(xlabel,size=5)
+    plt.xlabel(ylabel,size=5)
     i=0
     while True:
         line1.set_xdata(x[:i])
@@ -409,21 +420,31 @@ def gif_viewer(images,durations,title,pause=0):
     cv2.destroyAllWindows()
     return i
 
-def capture_path(images):
+def capture_path_full(images):
     global refPt
 
     refPt=(0,0)
     i=0
-    info_window=np.zeros((40,500,3))
+    info_window=np.zeros((80,500,3))
     cv2.namedWindow('Define Sprite Path')
     cv2.setMouseCallback('Define Sprite Path',click_mouseover)
     path=[(-2,-2)]*len(images)
+    size=[(-2,-2)]*len(images)
+    angle=[-2]*len(images)
+    angle_increment=10
+    ref_angle=0
     while True:
         info_window*=0
         info_string='Frame: '+str(i)+', (x,y) = '+str(refPt)
         if path[i]!=(-2,-2):
             info_string+=' Frame Marked: '+str(path[i])
+        info_string2=''
+        if size[i]!=(-2,-2):
+            info_string2+=' Size: '+'%.2f'%size[i][0]+' %.2f'%size[i][1]
+        if angle[i]!=-2:
+            info_string2+='  Angle: '+str(angle[i])
         cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        cv2.putText(info_window,info_string2,(10,65),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         thisim=images[i]
         cv2.imshow('Define Sprite Path',thisim.astype('uint8'))
         cv2.imshow('Info',info_window)
@@ -437,10 +458,34 @@ def capture_path(images):
             i=(i-1)%len(images)
         if key==ord('a'):
             path[i]=refPt
+        if key==ord('r'):
+            if angle[i]==-2:
+                angle[i]=ref_angle
+            else:
+                angle[i]=(angle[i]+angle_increment)%360
+        if key==ord('R'):
+            if angle[i]==-2:
+                angle[i]=ref_angle
+            else:
+                angle[i]=(angle[i]-angle_increment)%360
+        if key==ord('s'):
+            if size[i]==(-2,-2):
+                size[i]=(1,1)
+            else:
+                size[i]=(size[i][0]*1.1,size[i][1]*1.1)
+        if key==ord('S'):
+            if size[i]==(-2,-2):
+                size[i]=(1,1)
+            else:
+                size[i]=(size[i][0]/1.1,size[i][1]/1.1)
         if key==ord('l'):
             path[i]=(-1,-1)
     position=path[0]
+    nowsize=size[0]
+    nowangle=angle[0]
     increment=(0,0)
+    size_increment=(0,0)
+    angle_increment=0
     for i in range(len(images)):
         if (path[i]==(-2,-2)):
             position=(position[0]+increment[0],position[1]+increment[1])
@@ -453,8 +498,30 @@ def capture_path(images):
                     increment=(pathdiff[0]/(j-i),pathdiff[1]/(j-i))
                     break
                 increment=(0,0)
+        if (size[i]==(-2,-2)):
+            nowsize=(nowsize[0]+size_increment[0],nowsize[1]+size_increment[1])
+            size[i]=(float(nowsize[0]),float(nowsize[1]))
+        else:
+            nowsize=size[i]
+            for j in range(i+1,len(images)):
+                if size[j]!=(-2,-2):
+                    sizediff=(size[j][0]-size[i][0],size[j][1]-size[i][1])
+                    size_increment=(sizediff[0]/(j-i),sizediff[1]/(j-i))
+                    break
+                size_increment=(0,0)
+        if (angle[i]==-2):
+            nowangle=nowangle+angle_increment
+            angle[i]=float(nowangle)
+        else:
+            nowangle=angle[i]
+            for j in range(i+1,len(images)):
+                if angle[j]!=-2:
+                    anglediff=angle[j]-angle[i]
+                    angle_increment=anglediff/(j-i)
+                    break
+                angle_increment=0
     cv2.destroyAllWindows()
-    return path
+    return path,size,angle
 
 def rotate_image(mat, angle):
     """
@@ -519,17 +586,18 @@ def trim_to_fit(image,indices):
     x=indices[1][index_indices]
     return (y,x)
 
-def pix_edit(image,title='Image'):
+def pix_edit(image,title='Image',color=[255,255,255,255]):
     global refPt,clicked,clicked2
 
     refPt=(0,0)
     clicked=0
     clicked2=0
-    color=np.array([255,255,255,255])
+    color=np.array(color)
     empty=np.array([0,0,0,0])
     info_window=np.zeros((40,500,3))
     cv2.namedWindow(title,flags=cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(title,click_edit)
+    bucketmode=0
     while True:
         info_window*=0
         info_string="(x,y) = "+str(refPt)+' color = '+str(color)
@@ -537,15 +605,26 @@ def pix_edit(image,title='Image'):
         cv2.imshow(title,image.astype('uint8'))
         cv2.imshow('Info',info_window)
         key = cv2.waitKey(1) & 0xFF
-        if clicked==1 and not np.array_equal(image[refPt[1],refPt[0]],color):
-            image[refPt[1],refPt[0]]=color
-            clicked=0
-        elif clicked==1 and np.array_equal(image[refPt[1],refPt[0]],color):
-            image[refPt[1],refPt[0]]=empty
-            clicked=0
+        if bucketmode==1:
+            if clicked==1:
+                mask=np.zeros((image.shape[0],image.shape[1]),'uint8')
+                ref_color=image[refPt[1],refPt[0]]
+                mask=mycolor.flood_select(image,mask,(refPt[1],refPt[0]),ref_color,25)
+                inds=np.nonzero(mask==1)
+                image[inds]=color
+                clicked=0
+        if bucketmode==0:
+            if clicked==1 and not np.array_equal(image[refPt[1],refPt[0]],color):
+                image[refPt[1],refPt[0]]=color
+                clicked=0
+            elif clicked==1 and np.array_equal(image[refPt[1],refPt[0]],color):
+                image[refPt[1],refPt[0]]=empty
+                clicked=0
         if clicked2==1:
             color=np.array(image[refPt[1],refPt[0]])
             clicked2=0
+        if key==ord('b'):
+            bucketmode=(bucketmode+1)%2
         if key==ord('x'):
             cv2.destroyAllWindows()
             return 0

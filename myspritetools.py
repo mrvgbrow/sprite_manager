@@ -30,13 +30,18 @@ class sprite_path:
             self.angle2=[0.0]*len(self.path)
         else:
             self.angle2=np.array(angle2)
+
     def smooth(self,scale):
         new_path=[]
         new_speed=[]
+        new_xspeed=[]
+        new_yspeed=[]
         for i in range(len(self.path)):
             xav=0.0
             yav=0.0
             speedav=0.0
+            xspeedav=0.0
+            yspeedav=0.0
             functot=0.0
             funcref=0.0
             for k in range(2*scale+1):
@@ -46,19 +51,29 @@ class sprite_path:
                     xav+=genu.gaussian_function((i-j)/scale)*self.path[j][0]
                     yav+=genu.gaussian_function((i-j)/scale)*self.path[j][1]
                     speedav+=genu.gaussian_function((i-j)/scale)*self.speed[j]
+                    xspeedav+=genu.gaussian_function((i-j)/scale)*self.xspeed[j]
+                    yspeedav+=genu.gaussian_function((i-j)/scale)*self.yspeed[j]
                     functot+=genu.gaussian_function((i-j)/scale)
             if functot>0.8*funcref:
                 xval=int(round(xav/functot))
                 yval=int(round(yav/functot))
                 speedval=speedav/functot
+                yspeedval=yspeedav/functot
+                xspeedval=xspeedav/functot
             else:
                 xval=-1
                 yval=-1
                 speedval=-1
+                yspeedval=-1
+                xspeedval=-1
             new_path.append((xval,yval))
             new_speed.append(speedval)
+            new_xspeed.append(xspeedval)
+            new_yspeed.append(yspeedval)
         self.path=new_path
         self.speed=new_speed
+        self.xspeed=new_xspeed
+        self.yspeed=new_yspeed
 
     def determine_angles(self):
         self.angle1[0]=atan2((self.path[1][0]-self.path[0][0]),(self.path[1][1]-self.path[0][1]))
@@ -76,19 +91,30 @@ class sprite_path:
         return (math.sqrt((self.path[ind1][0]-self.path[ind2][0])**2+(self.path[ind1][1]-self.path[ind2][1])**2))
 
     def input_path(self,images):
-        self.path=myim.capture_path(images)
-        self.angle1=[0.0]*len(self.path)
+        self.path,self.sizes,self.angle1=myim.capture_path_full(images)
         self.angle2=[0.0]*len(self.path)
-        self.sizes=[0.0]*len(self.path)
         return 0
 
     def find_speeds(self):
         self.speed=[]
+        self.xspeed=[]
+        self.yspeed=[]
         self.speed.append(self.path_length(1,0))
+        self.xspeed.append(self.path[1][0]-self.path[0][0])
+        self.yspeed.append(self.path[1][1]-self.path[0][1])
         for i in range(1,len(self.path)-1):
+            if self.path[i+1][0]==-1 or self.path[i-1][0]==-1:
+                self.speed.append(-1)
+                self.xspeed.append(-1)
+                self.yspeed.append(-1)
+                continue
             self.speed.append(self.path_length(i+1,i-1)/2)
+            self.xspeed.append((self.path[i+1][0]-self.path[i-1][0])/2)
+            self.yspeed.append((self.path[i+1][1]-self.path[i-1][1])/2)
         self.speed.append(self.path_length(len(self.path)-1,len(self.path)-2))
-        return self.speed
+        self.xspeed.append(self.path[len(self.path)-1][0]-self.path[len(self.path)-2][0])
+        self.yspeed.append(self.path[len(self.path)-1][1]-self.path[len(self.path)-2][1])
+        return (self.speed,self.xspeed,self.yspeed)
 
     def write_path(self,outfile):
         f=open(outfile,'w')
@@ -292,7 +318,10 @@ class Sprite:
         return (maxsize,maxsize_x,maxsize_y)
 
     def read_sequence(self,name):
-        f=open(self.full_path+'/sequence.txt','r')
+        sequence_file=self.full_path+'/sequence.txt'
+        if os.path.isfile(sequence_file)==0:
+            return
+        f=open(sequence_file,'r')
         found=0
         for line in f:
             tag=line.split(":")
@@ -365,6 +394,9 @@ class Sprite:
             if path.angle1[i] != 0:
                 img_new=myim.rotate_image(img_new,path.angle1[i])
             center=self.center[self.sequence[s_index]]
+            if path.sizes[i] != (1.0,1.0) and path.sizes[i] != (-2,-2):
+                img_new=cv2.resize(img_new,(0,0),fx=path.sizes[i][0],fy=path.sizes[i][1],interpolation=cv2.INTER_NEAREST)
+                center=(center[0]*path.sizes[i][0],center[1]*path.sizes[i][1])
             true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
             if path.path[i][0]>=0:
                 background[i]=myim.add_images(img_new,background[i],true_pos[0],true_pos[1])
