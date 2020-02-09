@@ -497,6 +497,8 @@ def capture_path_full(images):
             nowangle=angle[i]
             for j in range(i+1,len(images)):
                 if angle[j]!=-2:
+                    if angle[j]<angle[i]:
+                        angle[j]+=360
                     anglediff=angle[j]-angle[i]
                     angle_increment=anglediff/(j-i)
                     break
@@ -506,7 +508,7 @@ def capture_path_full(images):
 
 def fill_path(array,nullval=(-2,-2)):
     nowarr=array[0]
-    increment=array[0]*0
+    increment=(0,0)
     for i in range(len(array)):
         if (array[i]==nullval):
             nowarr=(nowarr[0]+increment[0],nowarr[1]+increment[1])
@@ -518,6 +520,7 @@ def fill_path(array,nullval=(-2,-2)):
                     arrdiff=(array[j][0]-array[i][0],array[j][1]-array[i][1])
                     increment=(arrdiff[0]/(j-i),arrdiff[1]/(j-i))
                     break
+                increment=(0,0)
     return array
 
 def rotate_image(mat, angle):

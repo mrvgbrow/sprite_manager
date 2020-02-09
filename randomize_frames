@@ -1,0 +1,24 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+import random
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_gif(args['infile'])
+
+i=0
+nframes=len(imlist1)
+random.shuffle(imlist1)
+
+myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'])
