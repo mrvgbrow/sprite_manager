@@ -1,0 +1,38 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import math
+import argparse
+import numpy as np
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+ap.add_argument("-p","--xperiod",required=False,help="X Period of shake in frames",type=int,default=3)
+ap.add_argument("-e","--yperiod",required=False,help="Y Period of shake in frames",type=int,default=3)
+ap.add_argument("-d","--damping",required=False,help="Damping of shake",type=float,default=0.1)
+ap.add_argument("-x","--xamp",required=False,help="X amplitude",type=int,default=10)
+ap.add_argument("-y","--yamp",required=False,help="Y amplitude",type=int,default=10)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_gif(args['infile'])
+
+i=0
+xpad=args['xamp']
+ypad=args['yamp']
+shape=imlist1[0].shape
+for i in range(len(imlist1)):
+    x_phase=(i%args['xperiod'])/args['xperiod']
+    y_phase=(i%args['yperiod'])/args['yperiod']
+    x_offset=int(args['xamp']*math.exp(-args['damping']*i)*math.sin(x_phase))
+    y_offset=int(args['yamp']*math.exp(-args['damping']*i)*math.sin(y_phase))
+    im_full=np.zeros((shape[0]+2*ypad,shape[1]+2*xpad,shape[2]),'uint8')
+    im_full[ypad+y_offset:shape[0]+ypad+y_offset,xpad+x_offset:shape[1]+xpad+x_offset,0:shape[2]]=imlist1[i]
+    imlist1[i]=im_full[ypad:ypad+shape[0],xpad:xpad+shape[1],0:shape[2]]
+
+myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'])

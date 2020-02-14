@@ -1,0 +1,30 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import math
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+ap.add_argument("-f","--nframes",required=False,help="Frames per flash",type=int,default=10)
+ap.add_argument("-a","--amplitude",required=False,help="Amplitude of flash",type=int,default=2)
+ap.add_argument("-b","--offset",required=False,help="Offset of flash",type=int,default=0)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_gif(args['infile'])
+
+i=0
+for i in range(len(imlist1)):
+    phase=(i%(2*args['nframes']))/args['nframes']/2.
+    beta_adjust=int(math.sin(phase*2*math.pi)*args['offset'])
+    alpha_adjust=1+math.sin(phase*2*math.pi)**16*args['amplitude']
+    print(phase,alpha_adjust,beta_adjust,i)
+    imlist1[i]=cv2.convertScaleAbs(imlist1[i],-1,alpha_adjust,beta_adjust)
+
+myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'],pil=0)

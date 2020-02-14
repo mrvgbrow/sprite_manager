@@ -40,6 +40,15 @@ def fade_ims(ims1,ims2):
         ims3.append(overlay_two(ims1[i],ims2[i],alphas[i][1]/255.))
     return ims3
 
+def swipe_ims(ims1,ims2):
+    nframes=len(ims1)
+    xarr=genu.sample_line((ims1[0].shape[1]-1,0),(0,0),nframes)
+    ims3=[]
+    for i in range(nframes):
+        print(xarr[i][0])
+        ims3.append(add_images(ims2[i],ims1[i],xarr[i][0],0))
+    return ims3
+
 def get_overlap(image1,image2,x,y):
     xlim=image1.shape[1]
     ylim=image1.shape[0]
@@ -215,7 +224,10 @@ def sprite_center(mask):
     return indices.mean(axis=1)
 
 def maketransparent_withmask(image,mask):
-    b_channel, g_channel, r_channel=cv2.split(image)
+    if image.shape[2]==4:
+        b_channel, g_channel, r_channel,test=cv2.split(image)
+    else:
+        b_channel, g_channel, r_channel=cv2.split(image)
     image=cv2.merge((b_channel,g_channel,r_channel,mask.astype(b_channel.dtype)*255))
     return image
 
@@ -497,9 +509,10 @@ def capture_path_full(images):
             nowangle=angle[i]
             for j in range(i+1,len(images)):
                 if angle[j]!=-2:
-                    if angle[j]<angle[i]:
-                        angle[j]+=360
-                    anglediff=angle[j]-angle[i]
+                    if angle[j]>angle[i]:
+                        anglediff=angle[j]-angle[i]
+                    else:
+                        anglediff=angle[j]+360-angle[i]
                     angle_increment=anglediff/(j-i)
                     break
                 angle_increment=0
@@ -585,6 +598,55 @@ def trim_to_fit(image,indices):
     y=indices[0][index_indices]
     x=indices[1][index_indices]
     return (y,x)
+
+def select_pixels(image,title='Image',color=[255,255,255,255]):
+    global refPt,clicked,clicked2
+
+    image2=image.copy()
+    sys.setrecursionlimit(1000000)
+    refPt=(0,0)
+    clicked=0
+    clicked2=0
+    empty=np.array([0,0,0,0])
+    info_window=np.zeros((40,500,3))
+    cv2.namedWindow(title,flags=cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback(title,click_edit)
+    mask=np.zeros((image2.shape[0],image.shape[1]),'uint8')
+    mode='Bucket'
+    while True:
+        info_window*=0
+        info_string="(x,y) = "+str(refPt)+" Mode = "+mode
+        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        cv2.imshow(title,image2.astype('uint8'))
+        cv2.imshow('Info',info_window)
+        key = cv2.waitKey(1) & 0xFF
+        if mode == 'Bucket':
+            if clicked==1:
+                ref_color=image2[refPt[1],refPt[0]]
+                mask=mycolor.flood_select(image2,mask,(refPt[1],refPt[0]),ref_color,25)
+                inds=np.nonzero(mask==1)
+                image2[inds]=color
+                clicked=0
+        if mode == 'Pixel':
+            if clicked==1 and not np.array_equal(image2[refPt[1],refPt[0]],color):
+                image2[refPt[1],refPt[0]]=color
+                mask[refPt[1],refPt[0]]=1
+                clicked=0
+            elif clicked==1 and np.array_equal(image2[refPt[1],refPt[0]],color):
+                image2[refPt[1],refPt[0]]=empty
+                mask[refPt[1],refPt[0]]=0
+                clicked=0
+        if key==ord('b'):
+            if mode=='Bucket':
+                mode='Pixel'
+            else:
+                mode='Bucket'
+        if key==ord('x'):
+            cv2.destroyAllWindows()
+            return 0
+        if key==ord('s'):
+            cv2.destroyAllWindows()
+            return mask
 
 def pix_edit(image,title='Image',color=[255,255,255,255]):
     global refPt,clicked,clicked2

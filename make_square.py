@@ -5,7 +5,7 @@ import sys
 import cv2
 import numpy as np
 import argparse
-import myimutils
+import myimutils as myim
 import time
 from PIL import ImageSequence, Image, ImageOps
 
@@ -35,4 +35,4 @@ for frame in range(0,im.n_frames):
     new_im2=ImageOps.expand(new_im,padding)
     frames.append(new_im2)
 
-frames[0].save(outfile,save_all=True,append_images=frames[1:],duration=durations,loop=0)
+myim.write_animation(frames,durations,args['outfile'],pil=0)

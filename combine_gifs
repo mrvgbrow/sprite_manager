@@ -74,4 +74,4 @@ durations3=[args['duration']]*len(imlist3)
 
 myim.gif_viewer(imlist3,durations3,'Result')
 imlist3=myim.convert_to_PIL(imlist3)
-myim.write_animation(imlist3,durations3,args['outfile'],pil=1)
+myim.write_animation(imlist3,durations3,args['outfile'],pil=0)

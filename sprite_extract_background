@@ -24,19 +24,22 @@ def get_mask_diff(mask1,mask2):
     diff=np.sum(np.absolute(mask1.astype('float')-mask2.astype('float')))/box_area
     return diff
 
-#ap = argparse.ArgumentParser()
-#ap.add_argument("-i","--image",required=True,help="Path to the image")
-#args=vars(ap.parse_args())
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input image to extract from",type=str)
+ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+ap.add_argument("object",help="Name of the object the sprite represents",type=str)
+ap.add_argument("frame",help="Object frame number being extracted",type=str)
+ap.add_argument("-t","--threshold",required=False,help="Bucket threshold",type=int,default=25)
+args=vars(ap.parse_args())
 
 iter=5
-threshold=0.07
 (imlist1,durations) = myimutils.read_imdir(sys.argv[1])
 image=imlist1[0]
 image=image[...,0:3]
-fuzz=int(myargutils.check_arg(sys.argv,2,5))
-game=myargutils.check_arg(sys.argv,3,'none')
-object=myargutils.check_arg(sys.argv,4,'none')
-frame=myargutils.check_arg(sys.argv,5,'none')
+fuzz=args['threshold']
+game=args['game']
+object=args['object']
+frame=args['frame']
 
 color_background=mycolortools.imshow_get_color(image,'Select Background Color','x')
 indices=mycolortools.select_color(image,color_background,fuzz,invert=True)
