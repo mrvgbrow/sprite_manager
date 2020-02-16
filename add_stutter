@@ -11,19 +11,29 @@ import random
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input animation",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+ap.add_argument("-i","--inback",required=False,help="Name of the input background file",default='None')
 ap.add_argument("-f","--frequency",required=False,help="Frequency of the stutter",type=float,default=0.25)
+ap.add_argument("-t","--transparency",required=False,help="Transparency of stutter",type=float,default=0)
 args=vars(ap.parse_args())
 
 imlist1,durations = myim.read_gif(args['infile'])
 shape=imlist1[0].shape
 blank_frame=np.zeros((shape[0],shape[1],3),dtype='uint8')
+if args['inback']=='None':
+    fill_img=blank_frame
+else:
+    fill_imgs,durations2=myim.read_imdir(args['inback'])
+    fill_img=fill_imgs[0]
 
 i=0
 nframes=int(1/args['frequency'])
 for i in range(len(imlist1)):
     if random.randrange(0,nframes)==0:
-        imlist1[i]=blank_frame
+        if args['transparency']>0:
+            imlist1[i]=myim.overlay_two(imlist1[i],fill_img,args['transparency'])
+        else:
+            imlist1[i]=fill_img
 
 myim.gif_viewer(imlist1,durations,'Result')
 imlist1=myim.convert_to_PIL(imlist1)
-myim.write_animation(imlist1,durations,args['outfile'])
+myim.write_animation(imlist1,durations,args['outfile'],pil=0)

@@ -40,12 +40,15 @@ def fade_ims(ims1,ims2):
         ims3.append(overlay_two(ims1[i],ims2[i],alphas[i][1]/255.))
     return ims3
 
-def swipe_ims(ims1,ims2):
+def swipe_ims(ims1,ims2,shift=0):
     nframes=len(ims1)
     xarr=genu.sample_line((ims1[0].shape[1]-1,0),(0,0),nframes)
     ims3=[]
     for i in range(nframes):
         print(xarr[i][0])
+        overlap=ims1[0].shape[1]-xarr[i][0]
+        if shift==1:
+            ims1[i][:,0:xarr[i][0],:]=ims1[i][:,overlap:ims1[0].shape[1],:]
         ims3.append(add_images(ims2[i],ims1[i],xarr[i][0],0))
     return ims3
 
@@ -145,6 +148,16 @@ def click_rectangle(event,x,y,flags,param):
         clicked=0
         boxcorners.append((x,y))
 
+def click_rectangle_fixed(event,x,y,flags,param):
+    global boxcorner,clicked
+    if event == cv2.EVENT_LBUTTONDOWN:
+        clicked=1
+        boxcorner=[(x,y)]
+    if event == cv2.EVENT_MOUSEMOVE and clicked==1:
+        boxcorner=[(x,y)]
+    if event == cv2.EVENT_LBUTTONUP:
+        clicked=0
+
 def capture_point(image,mode=0):
     global clicked,refPt
 
@@ -189,6 +202,26 @@ def capture_path(image):
     cv2.destroyAllWindows()
     return pointlist
 
+def capture_box_fixed(image,dims):
+    global clicked,boxcorner
+    clicked=0
+    boxcorner=[(0,0)]
+
+    cv2.namedWindow("image",flags=cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback("image",click_rectangle_fixed)
+
+    while True:     
+        clone=image.copy()
+        cv2.rectangle(clone, boxcorner[0], (boxcorner[0][0]+dims[0],boxcorner[0][1]+dims[1]), (0, 255, 0), 1)
+        cv2.imshow("image",clone)
+        key = cv2.waitKey(1) & 0xFF
+
+        if key == ord("a"):
+            break
+
+    cv2.destroyAllWindows()
+    return boxcorner[0]
+
 def capture_box(image):
     global clicked,boxcorners,cornertemp
     clicked=0
@@ -201,7 +234,7 @@ def capture_box(image):
     while True:     
         clone=image.copy()
         if len(cornertemp)>0:
-            cv2.rectangle(clone, boxcorners[0], cornertemp[0], (0, 255, 0), 2)
+            cv2.rectangle(clone, boxcorners[0], cornertemp[0], (0, 255, 0), 1)
         cv2.imshow("image",clone)
         key = cv2.waitKey(1) & 0xFF
 

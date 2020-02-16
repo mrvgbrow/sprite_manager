@@ -1,0 +1,55 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import numpy as np
+import argparse
+import genutils as genu
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("infile2",help="Name of the image to zoom in on.",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+ap.add_argument("-n","--nframes",required=False,help="Number of frames over which to expand",type=int,default=50)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile'])
+imlist2,durations2 = myim.read_imdir(args['infile2'])
+shape1=imlist1[0].shape
+shape2=imlist2[0].shape
+min_size=(3,int(shape2[1]/shape2[0]*3))
+point=myim.capture_point(imlist1[0])
+if shape1[0]/shape2[0]>shape1[1]/shape2[1]:
+    max_xsize=shape1[1]
+    max_ysize=int(shape1[1]*shape2[0]/shape2[1])
+    max_posy=int(shape1[0]/2-max_ysize/2)
+    max_posx=0
+else:
+    max_ysize=shape1[0]
+    max_xsize=int(shape1[0]*shape2[1]/shape2[0])
+    max_posx=int(shape1[1]/2-max_xsize/2)
+    max_posy=0
+sizes=genu.sample_line((min_size[1],min_size[0]),(max_ysize,max_xsize),args['nframes'])
+positions=genu.sample_line((point[0],point[1]),(max_posx,max_posy),args['nframes'])
+frame0=imlist1[0]
+
+i=0
+if len(imlist1)<args['nframes']:
+    imlist1=[imlist1[0]]*args['nframes']
+    durations=[10]*args['nframes']
+for i in range(args['nframes']):
+    imlist1[i]=np.copy(frame0)
+    imobj_here=cv2.resize(imlist2[0].copy(),(sizes[i][1],sizes[i][0]),interpolation=cv2.INTER_AREA)
+    obj_shape=(sizes[i][0],sizes[i][1])
+    print(obj_shape,sizes[i])
+    if positions[i][1]+obj_shape[0]>shape1[0]:
+        positions[i]=(positions[i][0],shape1[0]-obj_shape[0])
+    if positions[i][0]+obj_shape[1]>shape1[1]:
+        positions[i]=(shape1[1]-obj_shape[1],positions[i][1])
+    imlist1[i][positions[i][1]:positions[i][1]+obj_shape[0],positions[i][0]:positions[i][0]+obj_shape[1],0:3]=imobj_here[:,:,0:3]
+
+myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'],pil=0)

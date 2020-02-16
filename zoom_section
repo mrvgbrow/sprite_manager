@@ -31,17 +31,24 @@ else:
     max_posx=int(shape[1]/2-max_xsize/2)
     max_posy=0
 myim.img_viewer(im_obj)
-corner1s=genu.sample_line((0,0),(box[0][0],box[0][1]),args['nframes'])
-corner2s=genu.sample_line((imlist1[0].shape[1]-1,imlist1[0].shape[0]-1),(box[1][0],box[1][1]),args['nframes'])
-frame0=np.copy(imlist1[0])
+sizes=genu.sample_line((box_ysize,box_xsize),(max_ysize,max_xsize),args['nframes'])
+positions=genu.sample_line((box[0][0],box[0][1]),(max_posx,max_posy),args['nframes'])
+frame0=imlist1[0]
 
 i=0
 if len(imlist1)<args['nframes']:
     imlist1=[imlist1[0]]*args['nframes']
     durations=[10]*args['nframes']
 for i in range(args['nframes']):
-    imlist1[i]=np.copy(frame0[corner1s[i][1]:corner2s[i][1],corner1s[i][0]:corner2s[i][0]])
-    imlist1[i]=cv2.resize(imlist1[i],(frame0.shape[1],frame0.shape[0]),interpolation=cv2.INTER_CUBIC)
+    imlist1[i]=np.copy(frame0)
+    imobj_here=cv2.resize(im_obj.copy(),(sizes[i][1],sizes[i][0]),interpolation=cv2.INTER_CUBIC)
+    obj_shape=imobj_here.shape
+    print(obj_shape,sizes[i])
+    if positions[i][1]+obj_shape[0]>shape[0]:
+        positions[i]=(positions[i][0],shape[0]-obj_shape[0])
+    if positions[i][0]+obj_shape[1]>shape[1]:
+        positions[i]=(shape[1]-obj_shape[1],positions[i][1])
+    imlist1[i][positions[i][1]:positions[i][1]+obj_shape[0],positions[i][0]:positions[i][0]+obj_shape[1],0:3]=imobj_here
 
 myim.gif_viewer(imlist1,durations,'Result')
 imlist1=myim.convert_to_PIL(imlist1)
