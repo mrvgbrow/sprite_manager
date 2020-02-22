@@ -3,6 +3,7 @@
 import os
 import sys
 import cv2
+import mycolortools as mycolor
 import numpy as np
 import argparse
 import myimutils as myim
@@ -14,6 +15,7 @@ ap.add_argument("pad",help="Number of pixels to pad.",type=int)
 ap.add_argument("direction",help="Direction to pad (1: right, 2: left, 3: top, 4: bottom).",type=int)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='temp.gif')
 ap.add_argument("-b","--border",required=False,help="Flag indicating whether to add a border before the padding.",type=int,default=0)
+ap.add_argument("-c","--color",required=False,help="Color of the padding.",type=str,default='0 0 0')
 args=vars(ap.parse_args())
 
 imlist,durations=myim.read_imdir(args['infile'])
@@ -30,6 +32,8 @@ else:
 
 for frame in range(len(imlist)):
     new_image=np.zeros(new_shape,'uint8')
+    fill_color=mycolor.parse_color(args['color'])
+    new_image[:,:]=fill_color[0:3]
     if args['direction']==1 or args['direction']==4:
         new_image[0:dimens[0],0:dimens[1],0:dimens[2]]=imlist[frame]
     if args['direction']==1 and args['border']==1:

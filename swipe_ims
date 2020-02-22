@@ -1,0 +1,40 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import numpy as np
+import argparse
+import genutils as genu
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile1",help="Name of the starting input image.",type=str)
+ap.add_argument("infile2",help="Name of the ending input image.",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+ap.add_argument("-n","--nframes",required=False,help="Number of frames over which to swipe",type=int,default=50)
+ap.add_argument("-s","--shift",required=False,help="Shift the first frame during the swipe?",type=int,default=1)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile1'])
+imlist2,durations = myim.read_imdir(args['infile2'])
+shape1=imlist1[0].shape
+shape2=imlist2[0].shape
+if shape1[2]==3:
+    imlist1=myim.add_alpha_channel(imlist1)
+if shape2[2]==3:
+    imlist2=myim.add_alpha_channel(imlist2)
+im1=imlist1[0]
+im2=imlist2[0]
+imlist3=[]
+imlist4=[]
+for i in range(args['nframes']):
+    imlist3.append(im1.copy())
+    imlist4.append(im2.copy())
+
+imlist5=myim.swipe_ims(imlist3,imlist4,shift=args['shift'])
+durations=[10]*len(imlist5)
+
+myim.gif_viewer(imlist5,durations,'Result')
+imlist5=myim.convert_to_PIL(imlist5)
+myim.write_animation(imlist5,durations,args['outfile'],pil=0)

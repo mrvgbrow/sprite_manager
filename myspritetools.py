@@ -19,7 +19,7 @@ class sprite_path:
     def __init__(self,path,sizes=[],angle1=[],angle2=[]):
         self.path=np.array(path)
         if len(sizes)!=len(path):
-            self.sizes=[0.0]*len(self.path)
+            self.sizes=[(1.0,1.0)]*len(self.path)
         else:
             self.sizes=np.array(sizes)
         if len(angle1)!=len(path):
@@ -81,10 +81,10 @@ class sprite_path:
             self.angle1[i]=atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))
 
     
-    def overlay(self,background,width=1):
+    def overlay(self,background,width=1,blend=0.6,color=[255,255,255]):
         for i in range(len(background)):
             for j in range(i+1,len(background)):
-                myim.fill_square(background[j],(self.path[i][0],self.path[i][1]),width,blend=0.6)
+                myim.fill_square(background[j],(self.path[i][0],self.path[i][1]),width,blend=blend,color=color)
         return background
 
     def path_length(self,ind1,ind2):
@@ -143,6 +143,7 @@ class Sprite:
         else:
             self.read_image(self.full_path)
         self.sequence=range(len(self.data))
+        self.seqflips=[]
         self.resize(size)
         self.read_colors()
 
@@ -342,6 +343,11 @@ class Sprite:
                 self.seqrots=[]
                 for rot in sequence:
                     self.seqrots.append(int(rot))
+            if tag[0]=='Flip' and found==1:
+                sequence=tag[1].split(',')
+                self.seqflips=[]
+                for flip in sequence:
+                    self.seqflips.append(int(flip))
         if (found==0):
             print('Sequence '+name+' not found')
         print(self.sequence)
@@ -391,9 +397,12 @@ class Sprite:
             if s_index==len(self.sequence):
                 s_index=0
             img_new=self.data[self.sequence[s_index]]
-            if path.angle1[i] != 0:
+            if path.angle1[i] > 0:
                 img_new=myim.rotate_image(img_new,path.angle1[i])
             center=self.center[self.sequence[s_index]]
+            if len(self.seqflips)>0: 
+                if self.seqflips[s_index]==1:
+                    img_new=cv2.flip(img_new,flipCode=1)
             if path.sizes[i] != (1.0,1.0) and path.sizes[i] != (-2,-2):
                 img_new=cv2.resize(img_new,(0,0),fx=path.sizes[i][0],fy=path.sizes[i][1],interpolation=cv2.INTER_NEAREST)
                 center=(center[0]*path.sizes[i][0],center[1]*path.sizes[i][1])

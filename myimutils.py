@@ -340,7 +340,7 @@ def write_gif(np_image,outfile):
 
 def write_animation(pil_array,durations,outfile,pil=1):
     if pil==0:
-        imageio.mimsave(outfile,pil_array)
+        imageio.mimsave(outfile,pil_array,duration=np.mean(durations)/1000)
         return
     for i in range(len(pil_array)):
         pil_array[i]=pil_array[i].convert("P")
@@ -458,6 +458,10 @@ def gif_viewer(images,durations,title,pause=0):
             i=(i+1)%len(images)
         if key==ord('['):
             i=(i-1)%len(images)
+        if key==ord('}'):
+            i=(i+10)%len(images)
+        if key==ord('{'):
+            i=(i-10)%len(images)
         if key==ord('p'):
             pause=(pause+1)%2
         if pause==0:
@@ -478,6 +482,7 @@ def capture_path_full(images):
     angle=[-2]*len(images)
     angle_increment=10
     ref_angle=0
+    loop=0
     while True:
         info_window*=0
         info_string='Frame: '+str(i)+', (x,y) = '+str(refPt)
@@ -499,8 +504,12 @@ def capture_path_full(images):
             break
         if key==ord(']'):
             i=(i+1)%len(images)
+        if key==ord('}'):
+            i=(i+10)%len(images)
         if key==ord('['):
             i=(i-1)%len(images)
+        if key==ord('{'):
+            i=(i-10)%len(images)
         if key==ord('a'):
             path[i]=refPt
         if key==ord('r'):
@@ -525,6 +534,8 @@ def capture_path_full(images):
                 size[i]=(size[i][0]/1.1,size[i][1]/1.1)
         if key==ord('l'):
             path[i]=(-1,-1)
+        if key==ord('L'):
+            loop=i
     position=path[0]
     nowsize=size[0]
     nowangle=angle[0]
@@ -549,6 +560,12 @@ def capture_path_full(images):
                     angle_increment=anglediff/(j-i)
                     break
                 angle_increment=0
+    if loop!=0:
+        for i in range(loop,len(images)):
+            ref_index=i%loop
+            path[i]=path[ref_index]
+            size[i]=size[ref_index]
+            angle[i]=angle[ref_index]
     cv2.destroyAllWindows()
     return path,size,angle
 
@@ -735,11 +752,11 @@ def grid_to_indices(xv,yv):
 #def image_map(image,x1,y1,x2,y2):
 #    image_new=np.zeros([
 
-def fill_square(image,position,halfside,blend=0):
+def fill_square(image,position,halfside,blend=0,color=[255,255,255]):
     for i in range(-halfside,halfside+1):
         for j in range(-halfside,halfside+1):
             for c in range(0,3):
-                image[position[1]+i,position[0]+j,c]=image[position[1]+i,position[0]+j,c]*blend+(1-blend)*255
+                image[position[1]+i,position[0]+j,c]=image[position[1]+i,position[0]+j,c]*blend+(1-blend)*color[c]
 
 def find_offset(array1,array2,indices,direction=1,offset_range=3):
     most_matches=0

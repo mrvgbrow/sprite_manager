@@ -1,0 +1,28 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile1",help="Name of the first input animation",type=str)
+ap.add_argument("infile2",help="Name of the second input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile1'])
+imlist2,durations2 = myim.read_imdir(args['infile2'])
+
+if (imlist1[0].shape[0]==imlist2[0].shape[0] and imlist1[0].shape[1]==imlist2[0].shape[1]):
+    i=0
+    for i in range(len(imlist2)):
+        imlist1.append(imlist2[i])
+        durations.append(durations2[i])
+
+    myim.gif_viewer(imlist1,durations,'Result')
+    imlist1=myim.convert_to_PIL(imlist1)
+    myim.write_animation(imlist1,durations,args['outfile'],pil=0)
+else:
+    print("Dimensions don't match")

@@ -27,6 +27,13 @@ def color_distance_2d(image1,image2):
     color_dist=np.sqrt(color_dist)
     return color_dist
 
+def click_point(event,x,y,flags,param):
+    global refPt,clicked
+    
+    if event == cv2.EVENT_LBUTTONDOWN:
+        refPt=(x,y)
+        clicked=1
+
 def color_distance_1d(var1,var2):
     var1=var1.astype('int')
     var2=var2.astype('int')
@@ -40,6 +47,36 @@ def parse_color(string):
     for i in range(len(carr)):
         color[i]=int(carr[i])
     return color
+
+def bucket_select(image,title='Image',threshold=25):
+    global refPt,clicked,clicked2
+
+    refPt=(0,0)
+    clicked=0
+    inds=[]
+    info_window=np.zeros((40,500,3))
+    cv2.namedWindow(title,flags=cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback(title,click_point)
+    while True:
+        info_window*=0
+        info_string="(x,y) = "+str(refPt)
+        cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        cv2.imshow(title,image.astype('uint8'))
+        cv2.imshow('Info',info_window)
+        key = cv2.waitKey(1) & 0xFF
+        if clicked==1:
+            mask=np.zeros((image.shape[0],image.shape[1]),'uint8')
+            ref_color=image[refPt[1],refPt[0]]
+            mask=flood_select(image,mask,(refPt[1],refPt[0]),ref_color,threshold)
+            inds=np.nonzero(mask==1)
+            image[inds]=[255,255,255]
+            clicked=0
+        if key==ord('x'):
+            cv2.destroyAllWindows()
+            return 0
+        if key==ord('s'):
+            cv2.destroyAllWindows()
+            return np.nonzero(mask==1)
 
 
 def color_combine(image):

@@ -22,7 +22,9 @@ print(shape,imlist1[0].shape)
 for i in range(len(imlist1)):
     if args['interp']=='cubic':
         imlist1[i]=cv2.resize(imlist1[i],(shape[1],shape[0]),interpolation=cv2.INTER_CUBIC)
-    else:
+    if args['interp']=='area':
+        imlist1[i]=cv2.resize(imlist1[i],(shape[1],shape[0]),interpolation=cv2.INTER_AREA)
+    if args['interp']=='nearest':
         imlist1[i]=cv2.resize(imlist1[i],(shape[1],shape[0]),interpolation=cv2.INTER_NEAREST)
 
 myim.gif_viewer(imlist1,durations,'Result')
