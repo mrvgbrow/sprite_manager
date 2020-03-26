@@ -1,0 +1,24 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import argparse
+import myimutils as myim
+import sys
+import os
+from PIL import Image
+import cv2
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input image",type=str)
+ap.add_argument("-x",'--xsize',help="Size of the box in x",type=int,default=0)
+ap.add_argument("-y",'--ysize',help="Size of the box in y",type=int,default=0)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output PNG file",default='default.png')
+args=vars(ap.parse_args())
+
+im=cv2.imread(args['infile'],cv2.IMREAD_UNCHANGED)
+if args['xsize']==0:
+    corners=myim.capture_box(im)
+    im_new=im[corners[0][1]:corners[1][1],corners[0][0]:corners[1][0],0:im.shape[2]]
+else:
+    corner=myim.capture_box_fixed(im,(args['xsize'],args['ysize']))
+    im_new=im[corner[1]:corner[1]+args['ysize'],corner[0]:corner[0]+args['xsize'],0:im.shape[2]]
+im=cv2.imwrite(args['outfile'],im_new)
