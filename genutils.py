@@ -27,3 +27,15 @@ def sample_line(pos1,pos2,nsample):
         pos_all.append((int(pos1[0]+(i+1)*inc_x),int(pos1[1]+(i+1)*inc_y)))
     pos_all.append(pos2)
     return pos_all
+
+def sample_quadratic(pos1,pos2,nsample,sign=1):
+    samples=np.linspace(0,1,num=nsample)
+    if sign==1:
+        x=np.multiply(samples,samples*((pos2[0]-pos1[0])))+pos1[0]
+        y=np.multiply(samples,samples*((pos2[1]-pos1[1])))+pos1[1]
+    else:
+        x=pos2[0]-np.multiply(samples,samples*((pos2[0]-pos1[0])))
+        y=pos2[1]-np.multiply(samples,samples*((pos2[1]-pos1[1])))
+        x=np.flip(x)
+        y=np.flip(y)
+    return x,y

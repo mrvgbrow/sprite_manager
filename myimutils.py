@@ -14,9 +14,28 @@ from PIL import Image
 
 def add_images(image2,image1,x,y):
     x1,x2,y1,y2=get_overlap(image1,image2,x,y)
+    shape=image2.shape
     image3=image1.copy()
+    xmin=0
+    xmax=shape[1]
+    ymin=0
+    ymax=shape[0]
+    if y1==0:
+        ymin=shape[0]-y2+y1
+        ymax=shape[0]
+    if y2==image1.shape[0]-1:
+        ymin=0
+        ymax=y2-y1
+    if x1==0:
+        xmin=shape[1]-x2+x1
+        xmax=shape[1]
+    if x2==image1.shape[1]-1:
+        xmin=0
+        xmax=x2-x1
+    if x1==0 and x2==0 and y1==0 and y2==0:
+        return image3.astype('uint8')
     for c in range(0,3):
-        image3[y1:y2,x1:x2,c]=(image2[:y2-y1,:x2-x1,3]/255.0*image2[:y2-y1,:x2-x1,c]+(1.0-image2[:y2-y1,:x2-x1,3]/255.0)*image1[y1:y2,x1:x2,c])
+        image3[y1:y2,x1:x2,c]=(image2[ymin:ymax,xmin:xmax,3]/255.0*image2[ymin:ymax,xmin:xmax,c]+(1.0-image2[ymin:ymax,xmin:xmax,3]/255.0)*image1[y1:y2,x1:x2,c])
     return image3.astype('uint8')
 
 def overlay_two(image2,image1,im2frac):
@@ -59,6 +78,15 @@ def get_overlap(image1,image2,x,y):
     x1,x2=x,x+image2.shape[1]
     if xlim<x2:
         x2=xlim-1
+    if x1<0:
+        x1=0
+    if y1<0:
+        y1=0
+    if x2<0 or y2<0 or xlim<x1 or ylim<y1:
+        y1=0
+        y2=0
+        x1=0
+        x2=0
     if ylim<y2:
         y2=ylim-1
     return [x1,x2,y1,y2]
@@ -70,7 +98,10 @@ def read_gif(infile):
     for i in range(im.n_frames):
         im.seek(i)
         if im.n_frames>1:
-            durations.append(im.info['duration'])
+            if 'duration' in im.info.keys():
+                durations.append(im.info['duration'])
+            else:
+                durations.append(10)
         pix=np.array(im.convert('RGB'))
         pix=pix[:,:,[2,1,0]]
         allims.append(pix)
@@ -105,6 +136,19 @@ def click_point(event,x,y,flags,param):
     if event == cv2.EVENT_LBUTTONDOWN:
         refPt=(x,y)
         clicked=1
+
+def click_line(event,x,y,flags,param):
+    global refPt1,refPt2,clicked
+    
+    if event == cv2.EVENT_LBUTTONDOWN:
+        refPt1=(x,y)
+        clicked=1
+    if event == cv2.EVENT_MOUSEMOVE:
+        refPt2=(x,y)
+    if event == cv2.EVENT_LBUTTONUP:
+        refPt2=(x,y)
+        clicked=0
+
 
 def click_mouseover(event,x,y,flags,param):
     global refPt,clicked
@@ -157,6 +201,35 @@ def click_rectangle_fixed(event,x,y,flags,param):
         boxcorner=[(x,y)]
     if event == cv2.EVENT_LBUTTONUP:
         clicked=0
+
+def capture_line(image,mode=0):
+    global clicked,refPt1,refPt2
+
+    clicked=0
+    refPt1=(0,0)
+    refPt2=(0,0)
+    if mode==1:
+        cv2.namedWindow("image",flags=cv2.WINDOW_NORMAL)
+    else:
+        cv2.namedWindow("image")
+
+    cv2.setMouseCallback("image",click_line)
+
+    while True:
+        clone=image.copy()
+        if clicked==1:
+            cv2.line(clone,refPt1,refPt2,(0,255,0),1)
+        cv2.imshow("image",clone[:,:,:3])
+        key = cv2.waitKey(1) & 0xFF
+
+        if key == ord("c"):
+            break
+        if key == ord("x"):
+            print(refPt1,refPt2)
+            break
+
+    cv2.destroyAllWindows()
+    return refPt1,refPt2
 
 def capture_point(image,mode=0):
     global clicked,refPt
@@ -443,7 +516,7 @@ def gif_viewer(images,durations,title,pause=0):
         thisim=images[i]
         cv2.imshow(title,thisim.astype('uint8'))
         cv2.imshow('Info',info_window)
-        if len(durations)>0:
+        if len(durations)>0 and durations[i]>0:
             wait=int(durations[i]*speed_factor)
         else:
             wait=5
@@ -474,27 +547,53 @@ def capture_path_full(images):
 
     refPt=(0,0)
     i=0
-    info_window=np.zeros((80,500,3))
+    info_window=np.zeros((120,1000,3))
     cv2.namedWindow('Define Sprite Path')
     cv2.setMouseCallback('Define Sprite Path',click_mouseover)
     path=[(-2,-2)]*len(images)
     size=[(-2,-2)]*len(images)
     angle=[-2]*len(images)
+    angle2=[-2]*len(images)
+    angle3=[-2]*len(images)
+    flipx=[-2]*len(images)
+    flipy=[-2]*len(images)
+    opacity=[-2]*len(images)
+    n_trans=20
+    opac_step=1/n_trans
     angle_increment=10
     ref_angle=0
-    loop=0
+    accel=[-2]*len(images)
+    loop=-1
     while True:
         info_window*=0
         info_string='Frame: '+str(i)+', (x,y) = '+str(refPt)
         if path[i]!=(-2,-2):
             info_string+=' Frame Marked: '+str(path[i])
+        if loop>-1:
+            info_string+='   Looping at frame '+str(i)
+        if loop<-1:
+            info_string+='   Reverse looping at frame '+str(i)
         info_string2=''
         if size[i]!=(-2,-2):
             info_string2+=' Size: '+'%.2f'%size[i][0]+' %.2f'%size[i][1]
         if angle[i]!=-2:
             info_string2+='  Angle: '+str(angle[i])
+        if angle2[i]!=-2:
+            info_string2+='  ZX Angle: '+str(angle2[i])
+        if angle3[i]!=-2:
+            info_string2+='  ZY Angle: '+str(angle3[i])
+        if opacity[i]!=-2:
+            info_string2+='  Opacity: '+str(opacity[i])
+        info_string3=''
+        if flipx[i]!=-2:
+            info_string3+='Flipx: '+str(flipx[i])
+        if flipy[i]!=-2:
+            info_string3+='  Flipy: '+str(flipy[i])
+        if accel[i]!=-2:
+            info_string3+='  Acceleration: '+str(accel[i]-1)
         cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         cv2.putText(info_window,info_string2,(10,65),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        cv2.putText(info_window,info_string3,(10,95),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         thisim=images[i]
         cv2.imshow('Define Sprite Path',thisim.astype('uint8'))
         cv2.imshow('Info',info_window)
@@ -512,16 +611,58 @@ def capture_path_full(images):
             i=(i-10)%len(images)
         if key==ord('a'):
             path[i]=refPt
+        if key==ord('A'):
+            accel[i]=(accel[i]+1)%3
+        if key==ord('n'):
+            if opacity[i]<0:
+                opacity[i]=1.0
+            else:
+                opacity[i]=(round((opacity[i]/opac_step+1))%(n_trans+1))/(n_trans)
+        if key==ord('N'):
+            if opacity[i]<0:
+                opacity[i]=1.0
+            else:
+                opacity[i]=(round((opacity[i]/opac_step-1))%(n_trans+1))/(n_trans)
         if key==ord('r'):
             if angle[i]==-2:
                 angle[i]=ref_angle
             else:
-                angle[i]=(angle[i]+angle_increment)%360
+                angle[i]=(angle[i]+angle_increment)
         if key==ord('R'):
             if angle[i]==-2:
                 angle[i]=ref_angle
             else:
-                angle[i]=(angle[i]-angle_increment)%360
+                angle[i]=(angle[i]-angle_increment)
+        if key==ord('z'):
+            if angle2[i]==-2:
+                angle2[i]=ref_angle
+            else:
+                angle2[i]=(angle2[i]+angle_increment)
+        if key==ord('Z'):
+            if angle2[i]==-2:
+                angle2[i]=ref_angle
+            else:
+                angle2[i]=(angle2[i]-angle_increment)
+        if key==ord('f'):
+            if flipx[i]==-2:
+                flipx[i]=1
+            else:
+                flipx[i]=(flipx[i]+1)%2
+        if key==ord('F'):
+            if flipy[i]==-2:
+                flipy[i]=1
+            else:
+                flipy[i]=(flipy[i]+1)%2
+        if key==ord('y'):
+            if angle3[i]==-2:
+                angle3[i]=ref_angle
+            else:
+                angle3[i]=(angle3[i]+angle_increment)
+        if key==ord('Y'):
+            if angle3[i]==-2:
+                angle3[i]=ref_angle
+            else:
+                angle3[i]=(angle3[i]-angle_increment)
         if key==ord('s'):
             if size[i]==(-2,-2):
                 size[i]=(1,1)
@@ -535,39 +676,81 @@ def capture_path_full(images):
         if key==ord('l'):
             path[i]=(-1,-1)
         if key==ord('L'):
-            loop=i
+            if loop!=-1:
+                loop=-loop
+            else:
+                loop=i
     position=path[0]
     nowsize=size[0]
-    nowangle=angle[0]
     increment=(0,0)
     size_increment=(0,0)
-    angle_increment=0
     path=fill_path(path)
     path=[(int(p[0]),int(p[1])) for p in path]
     size=fill_path(size)
-    for i in range(len(images)):
-        if (angle[i]==-2):
-            nowangle=nowangle+angle_increment
-            angle[i]=float(nowangle)
-        else:
-            nowangle=angle[i]
-            for j in range(i+1,len(images)):
-                if angle[j]!=-2:
-                    if angle[j]>angle[i]:
-                        anglediff=angle[j]-angle[i]
-                    else:
-                        anglediff=angle[j]+360-angle[i]
-                    angle_increment=anglediff/(j-i)
-                    break
-                angle_increment=0
-    if loop!=0:
+    angle=fill_val(angle,default=0.0)
+    angle2=fill_val(angle2,default=0.0)
+    angle3=fill_val(angle3,default=0.0)
+    opacity=fill_val(opacity,default=1.0)
+    flipx=fill_discrete(flipx)
+    flipy=fill_discrete(flipy)
+    accel=fill_discrete(accel)
+    if loop<-1:
+        for i in range(-loop,-2*loop):
+            ref_index=-2*loop-i-1
+            path[i]=path[ref_index]
+            size[i]=size[ref_index]
+            angle[i]=angle[ref_index]
+            angle2[i]=angle2[ref_index]
+            angle3[i]=angle3[ref_index]
+            flipx[i]=flipx[ref_index]
+            flipy[i]=flipy[ref_index]
+            accel[i]=accel[ref_index]
+            opacity[i]=opacity[ref_index]
+        loop=-2*loop
+    if loop>-1:
         for i in range(loop,len(images)):
             ref_index=i%loop
             path[i]=path[ref_index]
             size[i]=size[ref_index]
             angle[i]=angle[ref_index]
+            angle2[i]=angle2[ref_index]
+            angle3[i]=angle3[ref_index]
+            flipx[i]=flipx[ref_index]
+            flipy[i]=flipy[ref_index]
+            accel[i]=accel[ref_index]
+            opacity[i]=opacity[ref_index]
     cv2.destroyAllWindows()
-    return path,size,angle
+    return path,size,angle,angle2,angle3,flipx,flipy,opacity
+
+def fill_discrete(array,nullval=-2):
+    nowarr=array[0]
+    for i in range(len(array)):
+        if (array[i]==nullval):
+            array[i]=int(nowarr)
+        else:
+            nowarr=array[i]
+    return array
+
+def fill_val(array,nullval=-2,default=0.0):
+    nowarr=default
+    increment=0
+    for i in range(len(array)):
+        if (array[i]==nullval):
+            nowarr=nowarr+increment
+            array[i]=float(nowarr)
+        else:
+            nowarr=array[i]
+            for j in range(i+1,len(array)):
+                if array[j]!=nullval:
+                    arrdiff=array[j]-array[i]
+                    #if angle2[j]>=angle2[i]:
+                    #    anglediff2=angle2[j]-angle2[i]
+                    #else:
+                    #    anglediff2=angle2[j]+360-angle2[i]
+                    increment=arrdiff/(j-i)
+                    break
+                increment=0
+    return array
 
 def fill_path(array,nullval=(-2,-2)):
     nowarr=array[0]
@@ -649,7 +832,7 @@ def trim_to_fit(image,indices):
     x=indices[1][index_indices]
     return (y,x)
 
-def select_pixels(image,title='Image',color=[255,255,255,255]):
+def select_pixels(image,title='Image',color=[255,255,255,255],threshold=25):
     global refPt,clicked,clicked2
 
     image2=image.copy()
@@ -673,7 +856,7 @@ def select_pixels(image,title='Image',color=[255,255,255,255]):
         if mode == 'Bucket':
             if clicked==1:
                 ref_color=image2[refPt[1],refPt[0]]
-                mask=mycolor.flood_select(image2,mask,(refPt[1],refPt[0]),ref_color,25)
+                mask=mycolor.flood_select(image2,mask,(refPt[1],refPt[0]),ref_color,threshold)
                 inds=np.nonzero(mask==1)
                 image2[inds]=color
                 clicked=0
@@ -782,3 +965,80 @@ def axis_ratio_34(inrat):
         fx=1
     return (fx,fy)
 
+def add_border(image,color=[30,39,41],width=1):
+    #[56,139,191]
+    shape=image.shape
+    image[0:width,:,0:3]=color
+    image[:,0:width,0:3]=color
+    image[:,shape[0]-width-1:shape[0],0:3]=color
+    image[shape[0]-width-1:shape[0],:,0:3]=color
+    return image
+
+def add_texture(image,color1=[100,100,100],color2=[150,150,150],scale=2,bright=1.0):
+    shape=image.shape
+    scale2=scale*3.8
+    if bright!=1.0:
+        color1=np.multiply(color1,bright)
+        color2=np.multiply(color2,bright)
+    if shape[2]>3:
+        color1=np.append(color1,0)
+        color2=np.append(color2,0)
+    grid=np.indices(shape[0:2])
+    indices1=np.nonzero(np.logical_or((grid[0]%(scale*2)<scale) & (grid[1]%(scale*2)<scale),(grid[0]%(scale*2)>=scale) & (grid[1]%(scale*2)>=scale)))
+    indices2=np.nonzero(np.logical_or((grid[0]%(scale2*2)<scale2) & (grid[1]%(scale2*2)<scale2),(grid[0]%(scale2*2)>=scale2) & (grid[1]%(scale2*2)>=scale2)))
+    image[:,:]=color1
+    image[indices1]=color2
+    image[indices2]=np.multiply(color2,0.7)
+    return image
+
+def rotate3d(image,angle1,angle2):
+    shape=image.shape
+    angle1*=math.pi/180.
+    angle2*=math.pi/180.
+    pt1_1=[0,0]
+    pt2_1=[shape[1]-1,0]
+    pt3_1=[0,shape[0]-1]
+    src_tri=np.array([pt1_1,pt2_1,pt3_1]).astype(np.float32)
+
+    center=int(shape[1]/2)
+    halfwidth=int(shape[1]*math.cos(angle1)/2)
+    center2=int(shape[0]/2)
+    halfwidth2=int(shape[0]*math.cos(angle2)/2)
+    pt1_2=[center-halfwidth,center2-halfwidth2]
+    pt2_2=[center+halfwidth,center2-halfwidth2]
+    pt3_2=[center-halfwidth,center2+halfwidth2]
+    dst_tri=np.array([pt1_2,pt2_2,pt3_2]).astype(np.float32)
+
+    warp_mat=cv2.getAffineTransform(src_tri,dst_tri)
+    image=cv2.warpAffine(image,warp_mat,(shape[1],shape[0]))
+    return image
+
+def apply_opacity(image,opacity):
+    new_img=image.copy()
+    new_img[:,:,3]=new_img[:,:,3].astype('float')*opacity
+    return new_img.astype('uint8')
+
+def overlay_grid(image,xscale,yscale,xoffset,yoffset,color=[100,100,100],label=0):
+    new_img=image.copy()
+    for x in range(xoffset,image.shape[1],xscale):
+        new_img=cv2.line(new_img,(x,0),(x,image.shape[0]-1),color,1)
+    for y in range(yoffset,image.shape[0],yscale):
+        new_img=cv2.line(new_img,(0,y),(image.shape[1]-1,y),color,1)
+    if label==1:
+        new_img=label_grid(new_img,xscale,yscale,xoffset,yoffset,color=color)
+    return new_img
+
+def label_grid(image,xscale,yscale,xoffset,yoffset,color=[100,100,100]):
+    i=0
+    for x in range(xoffset-int(xscale/2)-3,image.shape[1],xscale):
+        if x<0:
+            continue
+        char='A'
+        for y in range(yoffset-int(yscale/2)+3,image.shape[0],yscale):
+            if y<0:
+                continue
+            string=char+str(i)
+            image=cv2.putText(image,string,(x,y),cv2.FONT_HERSHEY_SIMPLEX,0.3,color,1,cv2.LINE_AA)
+            char=chr(ord(char)+1)
+        i+=1
+    return image

@@ -81,7 +81,7 @@ def bucket_select(image,title='Image',threshold=25):
 
 def color_combine(image):
     im=np.zeros([image.shape[0],image.shape[1]],'int')
-    im=1000000*image[...,0].astype('int')+1000*image[...,1].astype('int')+image[...,2].astype('int')
+    im=1000000*image[...,0].astype('int')+1000*image[...,1].astype('int')+image[...,2].astype('long')
     return im
 
 def color_expand(image):
@@ -170,3 +170,18 @@ def color_spread(array):
         distances.append(color_distance_1d(np.array([array[i]]),color_mean))
     color_spread=np.mean(distances)
     return color_spread
+
+def find_barrier(image,start,direction,threshold=25,bcolor='0'):
+    ref_color=image[(start[1],start[0])]
+    cdiff=0
+    if bcolor != '0':
+        ref_color=parse_color(bcolor)
+        threshold=-threshold
+        cdiff=-1000
+    position=start
+    while cdiff<threshold and position[0]>0 and position[1]>0 and position[0]<image.shape[1] and position[1]<image.shape[0]:
+        position=np.add(direction,position)
+        cdiff=color_distance(ref_color,image[(position[1],position[0])])
+        if bcolor != '0':
+            cdiff=-cdiff
+    return (position[0],position[1])

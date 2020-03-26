@@ -16,7 +16,7 @@ import myimutils as myim
 from scipy import ndimage
 
 class sprite_path:
-    def __init__(self,path,sizes=[],angle1=[],angle2=[]):
+    def __init__(self,path,sizes=[],angle1=[],angle2=[],angle3=[],flipx=[],flipy=[],opacity=[]):
         self.path=np.array(path)
         if len(sizes)!=len(path):
             self.sizes=[(1.0,1.0)]*len(self.path)
@@ -30,6 +30,22 @@ class sprite_path:
             self.angle2=[0.0]*len(self.path)
         else:
             self.angle2=np.array(angle2)
+        if len(angle3)!=len(path):
+            self.angle3=[0.0]*len(self.path)
+        else:
+            self.angle3=np.array(angle3)
+        if len(flipx)!=len(path):
+            self.flipx=[0]*len(self.path)
+        else:
+            self.flipx=np.array(flipx)
+        if len(flipy)!=len(path):
+            self.flipy=[0]*len(self.path)
+        else:
+            self.flipy=np.array(flipy)
+        if len(opacity)!=len(path):
+            self.opacity=[1.0]*len(self.path)
+        else:
+            self.opacity=np.array(opacity)
 
     def smooth(self,scale):
         new_path=[]
@@ -81,18 +97,46 @@ class sprite_path:
             self.angle1[i]=atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))
 
     
-    def overlay(self,background,width=1,blend=0.6,color=[255,255,255]):
+    def overlay(self,background,width=2,blend=0.6,color=[255,255,255]):
         for i in range(len(background)):
             for j in range(i+1,len(background)):
-                myim.fill_square(background[j],(self.path[i][0],self.path[i][1]),width,blend=blend,color=color)
+                if myim.check_in_image(background[j],(self.path[i][0],self.path[i][1]),(width,width)):
+                    myim.fill_square(background[j],(self.path[i][0],self.path[i][1]),width,blend=blend,color=color)
         return background
 
     def path_length(self,ind1,ind2):
         return (math.sqrt((self.path[ind1][0]-self.path[ind2][0])**2+(self.path[ind1][1]-self.path[ind2][1])**2))
 
     def input_path(self,images):
-        self.path,self.sizes,self.angle1=myim.capture_path_full(images)
+        self.path,self.sizes,self.angle1,self.angle2,self.angle3,self.flipx,self.flipy,self.opacity=myim.capture_path_full(images)
+        return 0
+
+    def calc_g(self,x0,y0,angle,speed,scale,frametime):
+        new_path=[]
+        x=x0
+        y=y0
+        vx=speed*math.cos(angle)/scale*frametime
+        vy=speed*math.sin(angle)/scale*frametime
+        acceleration=9.8*frametime**2/scale
+        new_path.append((int(x),int(y)))
+        for i in range(1,len(self.path)):
+           vy+=acceleration
+           x+=vx
+           y+=vy
+           new_path.append((int(x),int(y)))
+        self.path=new_path
+        return 0
+
+    def input_trajectory(self,images,speed,scale=1.0,frametime=1.0):
+        (point1,point2)=myim.capture_line(images[0])
+        angle_init=math.atan2((point2[1]-point1[1]),(point2[0]-point1[0]))
+        self.calc_g(point1[0],point1[1],angle_init,speed,scale,frametime)
+        self.angle1=[0.0]*len(self.path)
         self.angle2=[0.0]*len(self.path)
+        self.angle3=[0.0]*len(self.path)
+        self.flipx=[0.0]*len(self.path)
+        self.flipy=[0.0]*len(self.path)
+        self.opacity=[1.0]*len(self.path)
         return 0
 
     def find_speeds(self):
@@ -144,6 +188,8 @@ class Sprite:
             self.read_image(self.full_path)
         self.sequence=range(len(self.data))
         self.seqflips=[]
+        self.seqoffx=[]
+        self.seqoffy=[]
         self.resize(size)
         self.read_colors()
 
@@ -173,8 +219,8 @@ class Sprite:
             return
         data=cv2.imread(self.full_path,cv2.IMREAD_UNCHANGED)
         self.data.append(data)
-        self.recenter()
         self.n_image=1
+        self.recenter()
 
     def list_colors(self):
         color_list=[]
@@ -210,11 +256,27 @@ class Sprite:
                 image=cv2.resize(s_image,(0,0),fx=size,fy=size,interpolation=cv2.INTER_NEAREST)
                 self.data[i]=image
             self.recenter()
+            if len(self.seqoffx)>0:
+                for i in range(len(self.seqoffx)):
+                    self.seqoffx[i]=int(self.seqoffx[i]*size)
+            if len(self.seqoffy)>0:
+                for i in range(len(self.seqoffy)):
+                    self.seqoffy[i]=int(self.seqoffy[i]*size)
 
     def save_rotations(self,interval):
         for o in range(interval,360,interval):
             for i in range(self.n_image):
                 self.data.append(myim.rotate_image(self.data[i],o))
+        self.n_image=len(self.data)
+        self.recenter()
+
+    def save_flips(self,ftype=2):
+        flip_arr=[0,1,-1]
+        if ftype!=2:
+            flip_arr=[ftype]
+        for o in flip_arr:
+            for i in range(self.n_image):
+                self.data.append(cv2.flip(self.data[i],flipCode=o))
         self.n_image=len(self.data)
         self.recenter()
 
@@ -242,8 +304,14 @@ class Sprite:
             return [np.mean(visible[1]),np.mean(visible[0])]
         elif self.anchor==1:
             return [np.mean(visible[1]),np.max(visible[0])]
+        elif self.anchor==2:
+            return [np.min(visible[1]),np.mean(visible[0])]
         elif self.anchor==3:
             return [np.mean(visible[1]),np.min(visible[0])]
+        elif self.anchor==4:
+            return [np.max(visible[1]),np.mean(visible[0])]
+        elif self.anchor==5:
+            return [np.min(visible[1]),np.min(visible[0])]
 
     def compute_fit(self,image,i):
         visible=self.visible[i]
@@ -316,6 +384,10 @@ class Sprite:
                 maxsize_x=maxhere_x
             if maxhere_y>maxsize_y:
                 maxsize_y=maxhere_y
+        if len(self.seqoffx)>0:
+            maxsize_x+=max(self.seqoffx)-min(self.seqoffx)
+        if len(self.seqoffy)>0:
+            maxsize_y+=max(self.seqoffy)-min(self.seqoffy)
         return (maxsize,maxsize_x,maxsize_y)
 
     def read_sequence(self,name):
@@ -343,6 +415,16 @@ class Sprite:
                 self.seqrots=[]
                 for rot in sequence:
                     self.seqrots.append(int(rot))
+            if tag[0]=='Offset_x' and found==1:
+                sequence=tag[1].split(',')
+                self.seqoffx=[]
+                for offset in sequence:
+                    self.seqoffx.append(int(offset))
+            if tag[0]=='Offset_y' and found==1:
+                sequence=tag[1].split(',')
+                self.seqoffy=[]
+                for offset in sequence:
+                    self.seqoffy.append(int(offset))
             if tag[0]=='Flip' and found==1:
                 sequence=tag[1].split(',')
                 self.seqflips=[]
@@ -399,14 +481,38 @@ class Sprite:
             img_new=self.data[self.sequence[s_index]]
             if path.angle1[i] > 0:
                 img_new=myim.rotate_image(img_new,path.angle1[i])
+            if path.angle2[i] > 0:
+                img_new=myim.rotate3d(img_new,path.angle2[i],0.0)
+            if path.angle3[i] > 0:
+                img_new=myim.rotate3d(img_new,0.0,path.angle3[i])
+            if path.flipx[i] > 0:
+                img_new=cv2.flip(img_new,0)
+            if path.flipy[i] > 0:
+                img_new=cv2.flip(img_new,1)
+            if path.opacity[i] < 1.0:
+                img_new=myim.apply_opacity(img_new,path.opacity[i])
             center=self.center[self.sequence[s_index]]
             if len(self.seqflips)>0: 
-                if self.seqflips[s_index]==1:
-                    img_new=cv2.flip(img_new,flipCode=1)
+                if self.seqflips[s_index]!=0:
+                    if self.seqflips[s_index]>0:
+                        flipCode=self.seqflips[s_index]%2
+                    else:
+                        flipCode=-1
+                    img_new=cv2.flip(img_new,flipCode=flipCode)
+            if len(self.seqoffx)>0: 
+                offset_x=self.seqoffx[s_index]
+            else:
+                offset_x=0
+            if len(self.seqoffy)>0: 
+                offset_y=self.seqoffy[s_index]
+            else:
+                offset_y=0
             if path.sizes[i] != (1.0,1.0) and path.sizes[i] != (-2,-2):
                 img_new=cv2.resize(img_new,(0,0),fx=path.sizes[i][0],fy=path.sizes[i][1],interpolation=cv2.INTER_NEAREST)
                 center=(center[0]*path.sizes[i][0],center[1]*path.sizes[i][1])
-            true_pos=(position[0]-int(center[0]),position[1]-int(center[1]))
+                offset_x=int(offset_x*path.sizes[i][0])
+                offset_y=int(offset_y*path.sizes[i][1])
+            true_pos=(position[0]-int(center[0])+offset_x,position[1]-int(center[1])+offset_y)
             if path.path[i][0]>=0:
                 background[i]=myim.add_images(img_new,background[i],true_pos[0],true_pos[1])
         return background
@@ -444,7 +550,7 @@ def sprite_fullpath(game,object,frame):
 
     return full_path
 
-def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0,flip=0):
+def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0,flip=0,color='Default'):
     if (images[0].shape[2]==3):
         images=myim.add_alpha_channel(images)
     mysprite=Sprite(game,object,frame,pace=pace,size=size,anchor=anchor)
@@ -454,21 +560,34 @@ def add_sprite(images,game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0
         mysprite.flip_data(flip)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
+    if color != 'Default':
+        mysprite.swap_colors(color)
     if path==[0]:
         path=myim.capture_point(images[0])
     return mysprite.overlay(images,path)
 
-def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0,flip=0,text=''):
-    mysprite=Sprite(game,object,frame,pace=pace,size=size,anchor=anchor)
+def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0],sequence='None',anchor=0,center=0,flip=0,text='',bgcolor='48 40 36',bright=1.0,color='Default'):
+    mysprite=Sprite(game,object,frame,pace=pace,anchor=anchor)
     if rotate>0:
         mysprite.rotate_data(rotate)
     if flip>0:
         mysprite.flip_data(flip)
     if sequence != 'None':
         mysprite.read_sequence(sequence)
+    if color != 'Default':
+        mysprite.swap_colors(color)
+    if size!=1.0:
+        mysprite.resize(size)
     size,size_x,size_y=mysprite.maxsize()
+    bgcolor=mycolor.parse_color(bgcolor)
     blank_size=int(size*1.5)
-    images=[np.zeros([blank_size,blank_size,4],'uint8')]*mysprite.nframes()
+    blank_size_x=int(size_x*1.5)
+    blank_size_y=int(size_y*1.5)
+    new_img=np.zeros([blank_size_y,blank_size_x,4],'uint8')
+    new_img[:,:,0:3]=bgcolor[0:3]
+    new_img=myim.add_texture(new_img,bright=bright)
+    #new_img=myim.add_border(new_img,width=3)
+    images=[new_img]*mysprite.nframes()
     if text != '':
         fontsize=blank_size/200
         text_pos_x=int(blank_size/2)-int(len(text)*8*fontsize)
@@ -478,5 +597,13 @@ def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0]
     if path==[0] and center==0:
         path=myim.capture_point(images[0])
     if path==[0] and center==1:
-        path=(int(blank_size/2),int(blank_size/2))
+        if len(mysprite.seqoffy)>0:
+            posy=int(blank_size_y/2)-int(np.mean(mysprite.seqoffy))
+        else:
+            posy=int(blank_size_y/2)
+        if len(mysprite.seqoffx)>0:
+            posx=int(blank_size_x/2)-int(np.mean(mysprite.seqoffx))
+        else:
+            posx=int(blank_size_x/2)
+        path=(posx,posy)
     return mysprite.overlay(images,path)
