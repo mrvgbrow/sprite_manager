@@ -1,0 +1,40 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import sys
+import cv2
+import numpy as np
+import argparse
+import myimutils as myim
+import mycolortools
+import random
+from scipy import stats
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("inoffsets",help="Name of the input offsets measured by find_background_scrolling",type=str)
+ap.add_argument("startheight",help="Starting vertical position in the tilemap",type=int,default=0)
+ap.add_argument("-o","--outfile",required=False,help="Name of the marked animation file",default='default.gif')
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_gif(args['infile'])
+offsets=np.loadtxt(args['inoffsets'],dtype='int')
+dimens=imlist1[0].shape
+
+height=args['startheight']
+for i in range(len(imlist1)):
+    height+=offsets[i]
+    clone=imlist1[i].copy()
+    cv2.line(clone,(0,height),(dimens[1]-1,height),(0,0,255),1)
+    cv2.putText(clone,'Screen Bottom',(12,height-5),cv2.FONT_HERSHEY_SIMPLEX,0.25,(0,0,255),1,cv2.LINE_AA)
+    height2=height-224
+    if height2<0:
+        height2=dimens[0]+height2+1
+    cv2.line(clone,(0,height2),(dimens[1]-1,height2),(255,0,0),1)
+    cv2.putText(clone,'Screen Top',(12,height2-5),cv2.FONT_HERSHEY_SIMPLEX,0.25,(255,0,0),1,cv2.LINE_AA)
+    imlist1[i]=clone
+    if height<0:
+        height=dimens[0]+height+1
+
+dum=myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'],pil=0)

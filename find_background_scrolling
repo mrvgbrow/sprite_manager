@@ -12,6 +12,7 @@ from scipy import stats
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input animation",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.png')
+ap.add_argument("-f","--offsetout",required=False,help="Name of the output offset file",default='default.odat')
 ap.add_argument("-g","--outgif",required=False,help="Name of the background-subtracted animation file",default='test.gif')
 ap.add_argument("-d","--direction",required=False,help="Direction of scrolling (1=vertical, 2=horizontal)",type=int,default=1)
 ap.add_argument("-n","--npos",required=False,help="Number of random positions to use in fit.",type=int,default=1000)
@@ -37,8 +38,16 @@ for im in imlist1:
         offsets.append(offset)
     i+=1
 
-total_offset=np.sum(offsets)
-print(offsets)
+offtot=0
+max_off=0
+for i in range(len(offsets)):
+    offtot+=offsets[i]
+    if abs(offtot)>abs(max_off):
+        max_off=offtot
+
+total_offset=max_off
+#print(offsets)
+#print(total_offset)
 if args['direction']==1:
     new_dimens=(len(imlist1),dimens[0]+abs(total_offset),dimens[1])
 else:
@@ -52,29 +61,35 @@ else:
     offset=-total_offset
 for im in imlist1:
     offset+=offsets[i]
-    print(offset)
     if args['direction']==1:
         back_image[i,offset:offset+dimens[0],:]=imlist1[i]
     else:
         back_image[i,:,offset:offset+dimens[1]]=imlist1[i]
     i+=1
+np.savetxt(args['offsetout'],offsets,fmt='%2d')
 imagemode=stats.mode(back_image)
-print(imagemode[0].shape)
 image=np.squeeze(imagemode[0],axis=0)
 image_mode=mycolortools.color_expand(image)
 cv2.imwrite(args['outfile'],image_mode)
 myim.imshow_loop(image_mode,'Background Image','x')
-sys.exit()
 
 i=0
-for im in imlist1:
-    indices=np.nonzero(im==image)
-    im[indices]=0
-    imlist1[i]=mycolortools.color_expand(im)
+if total_offset>0:
+    offset=0
+else:
+    offset=-total_offset
+for i in range(len(imlist1)):
+    offset+=offsets[i]
+    if args['direction']==1:
+        back=image[offset:offset+dimens[0],:]
+    else:
+        back=image[:,offset:offset+dimens[1]]
+    indices=np.nonzero(imlist1[i]==back)
+    imlist1[i][indices]=0
+    imlist1[i]=mycolortools.color_expand(imlist1[i])
 #    indices=mycolortools.select_color(imlist1[i],[0,0,0],args['fuzz'],invert=True)
 #    mask=myim.make_mask(indices,imlist1[i].shape)
 #    imlist1[i]=myim.maketransparent_withmask(imlist1[i],mask)
-    i+=1
 cv2.imwrite(args['outfile'],image)
 imlist1=myim.convert_to_PIL(imlist1)
-myim.write_animation(imlist1,durations,args['outgif'])
+myim.write_animation(imlist1,durations,args['outgif'],pil=0)
