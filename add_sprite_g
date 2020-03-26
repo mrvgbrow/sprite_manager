@@ -1,0 +1,67 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import os
+import sys
+import cv2
+import numpy as np
+import mycolortools as mycolor
+import argparse
+import myimutils
+import myargutils
+import myspritetools as myspr
+import time
+from PIL import ImageSequence, Image, ImageOps
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input background file",type=str)
+ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+ap.add_argument("object",help="Name of the object the sprite represents",type=str)
+ap.add_argument("speed",help="Inital speed of the sprite",type=float)
+ap.add_argument("-s","--scale",help="Physical scale of the image.",required=False,type=float,default=1.0)
+ap.add_argument("-f","--frametime",help="Physical time of each frame.",required=False,type=float,default=1.0)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+ap.add_argument("-p","--outpath",required=False,help="Name of the output path file",default='default.pdat')
+ap.add_argument("-q","--sequence",required=False,help="Name of the animation sequence to use",type=str,default='None')
+ap.add_argument("-a","--anchor",required=False,help="Where to anchor the sprite sequence (0: center, 1: bottom, 3: top)",type=int,default=0)
+ap.add_argument("-b","--bucketexclude",required=False,help="Threshold for bucket select exclusion",type=int,default=0)
+ap.add_argument("-r","--rotate",required=False,help="The sprite rotation angle",type=float,default=0.0)
+ap.add_argument("-i","--pil",required=False,help="Use PIL?",type=int,default=1)
+args=vars(ap.parse_args())
+
+game=args['game']
+object=args['object']
+frametime=args['frametime']
+outfile=args['outfile']
+sequence=args['sequence']
+anchor=args['anchor']
+pil=args['pil']
+
+sys.setrecursionlimit(1000000)
+(background,durations)=myimutils.read_imdir(args['infile'])
+
+# Convert scale from vertical size of image to m/pixel
+scale=args['scale']/background[0].shape[0]
+
+if args['bucketexclude']>0:
+    background0=background[0][:,:,0:3].copy()
+    inds=mycolor.bucket_select(background[0],threshold=args['bucketexclude'])
+
+path=myspr.sprite_path([0]*len(background))
+if len(background)==1:
+    tempsprite=myspr.Sprite(game,object,frame)
+    tempsprite.read_sequence(sequence)
+    background=[background[0]]*tempsprite.nframes()
+    durations=[10*args['duration']]*len(background)
+    pil=0
+path.input_trajectory(background,args['speed'],scale=scale,frametime=frametime)
+
+new_frames=myspr.add_sprite(background,game,object,sequence=sequence,anchor=anchor,path=path,rotate=args['rotate'])
+if args['bucketexclude']>0:
+    for i in range(len(new_frames)):
+        new_frames[i]=new_frames[i][:,:,0:3]
+        new_frames[i][inds]=background0[inds]
+
+path.write_path(args['outpath'])
+dum=myimutils.gif_viewer(new_frames,durations,'Result')
+new_frames=myimutils.convert_to_PIL(new_frames)
+myimutils.write_animation(new_frames,durations,outfile,pil=pil)

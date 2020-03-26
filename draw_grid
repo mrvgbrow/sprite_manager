@@ -1,0 +1,57 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import genutils as genu
+import sys
+import argparse
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input image",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output animation",default='default.gif')
+ap.add_argument("-p","--outpng",required=False,help="Name of the output final image",default='None')
+ap.add_argument("-a","--animate",required=False,type=int,help="Animate grid drawing?",default=0)
+ap.add_argument("-x","--xscale",required=False,type=int,help="Scale in the x direction",default=10)
+ap.add_argument("-y","--yscale",required=False,type=int,help="Scale in the y direction",default=10)
+ap.add_argument("-X","--xoffset",required=False,type=int,help="Initial offset in the x direction",default=0)
+ap.add_argument("-Y","--yoffset",required=False,type=int,help="Initial offset in the Y direction",default=0)
+ap.add_argument("-l","--label",required=False,type=int,help="Label the grid cells?",default=1)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile'])
+
+anim=args['animate']
+imlist2=[]
+durations2=[]
+i=0
+xs=imlist1[0].shape[1]
+ys=imlist1[0].shape[0]
+new_img=imlist1[0].copy()
+if anim==0:
+    for i in range(len(imlist1)):
+        imlist1[i]=myim.overlay_grid(imlist1[i],args['xscale'],args['yscale'],args['xoffset'],args['yoffset'],color=[70,70,70],label=args['label'])
+    imlist2=imlist1
+    durations2=durations
+else:
+    for x in range(args['xoffset'],xs,args['xscale']):
+        new_img=new_img.copy()
+        new_img=cv2.line(new_img,(x,0),(x,ys-1),[255,255,255],1)
+        imlist2.append(new_img)
+        durations2.append(100)
+
+    for y in range(args['yoffset'],ys,args['yscale']):
+        new_img=new_img.copy()
+        new_img=cv2.line(new_img,(0,y),(xs-1,y),[255,255,255],1)
+        imlist2.append(new_img)
+        durations2.append(100)
+
+    durations2[len(durations2)-1]=2000
+
+if args['outpng']!='None':
+    new_img=myim.overlay_grid(imlist1[0],args['xscale'],args['yscale'],args['xoffset'],args['yoffset'],color=[70,70,70])
+    cv2.imwrite(args['outpng'],new_img)
+
+myim.gif_viewer(imlist2,durations2,'Result')
+imlist2=myim.convert_to_PIL(imlist2)
+myim.write_animation(imlist2,durations2,args['outfile'],pil=0)
