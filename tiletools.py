@@ -1,4 +1,5 @@
 import math
+import mycolortools as mycolor
 import numpy as np
 import myimutils as myim
 import sys
@@ -6,7 +7,7 @@ import os
 import cv2
 
 class tileset:
-    def __init__(self,data,tilesize=(8,8),tilesep=(0,0),ntile=(0,0),init_skip=(0,0),game=''):
+    def __init__(self,data,tilesize=(8,8),tilesep=(0,0),init_skip=(0,0),game=''):
         self.root_dir='C:/Users/sp4ce/Google Drive/Documents/Tiles'
         if type(data) is str:
             filename=self.root_dir+'/'+game+'/'+data+'.png'
@@ -17,20 +18,28 @@ class tileset:
         self.tilesize=tilesize
         self.tilesep=tilesep
         self.init_skip=init_skip
-        self.ntile=ntile
         self.extract_tiles()
+        print(len(self.tiles))
+
+    def append(self,tiles):
+        if tiles[0].shape[0]==self.tilesize[0]:
+            for tile in tiles:
+                self.tiles.append(tile)
 
     def extract_tiles(self):
         shape=self.data0.shape
         print(self.tilesep,self.tilesize,self.init_skip)
         increment_x=self.tilesize[0]+self.tilesep[0]
         increment_y=self.tilesize[1]+self.tilesep[1]
-        self.nx=int((shape[1]-self.init_skip[0])/increment_x)
-        self.ny=int((shape[0]-self.init_skip[1])/increment_y)
+        self.nx=int((shape[1]-self.init_skip[0]+self.tilesep[0])/increment_x)
+        self.ny=int((shape[0]-self.init_skip[1]+self.tilesep[1])/increment_y)
         self.tiles=[]
-        for j in range(self.init_skip[1],shape[0]-increment_y+1,increment_y):
-            for i in range(self.init_skip[0],shape[1]-increment_x+1,increment_x):
-                self.tiles.append(self.data0[j:j+self.tilesize[1],i:i+self.tilesize[0]])
+        for j in range(self.init_skip[1],shape[0],increment_y):
+            for i in range(self.init_skip[0],shape[1],increment_x):
+                tile=self.data0[j:j+self.tilesize[1],i:i+self.tilesize[0]]
+                tilemean=np.mean(tile)
+                if (tilemean != 255):
+                    self.tiles.append(tile)
 
     def resize(self,size_x,size_y=0):
         if size_y==0:
@@ -68,6 +77,7 @@ class tileset:
 
     def place_tile(self,image,tile,pos,orientation=0,force=0):
         shape=image.shape
+        print('tilenum ',tile)
         if force==0:
             x0=int(pos[0]/self.tilesize[0])*self.tilesize[0]
             y0=int(pos[1]/self.tilesize[1])*self.tilesize[1]
@@ -80,8 +90,8 @@ class tileset:
         image[y0:y0+self.tilesize[1],x0:x0+self.tilesize[0],0:3]=newtile
         return image
 
-    def make_tileset_img(self,nx,ny,first=0,last=0,scale=1,border=0):
-        if last==0:
+    def make_tileset_img(self,nx,ny,first=0,last=-1,scale=1,border=0):
+        if last==-1:
             last=min(len(self.tiles),nx*ny)
         tilesize=(self.tilesize[0]*scale+border,self.tilesize[1]*scale+border)
         grid=np.ones((ny*tilesize[0],nx*tilesize[1],3),dtype='uint8')*255
@@ -97,13 +107,14 @@ class tileset:
     def save_tiles(self,game,append=0,filename='0'):
         gamedir=self.root_dir+'/'+game+'/'
         os.makedirs(gamedir,exist_ok=True)
-        n_per_file=300
-        nx=10
-        ny=int(n_per_file/nx)
-        nfiles=int(self.nx*self.ny/n_per_file)+1
+        n_per_file=900
+        nx=30
+        nfiles=int(len(self.tiles)/n_per_file)+1
+        ny=int(len(self.tiles)/nx)+1
         tile0=0
         for file in range(nfiles):
-            endpos=min(n_per_file,len(self.tiles)-tile0)
+            length=min(n_per_file,len(self.tiles)-tile0)
+            endpos=tile0+length
             grid=self.make_tileset_img(nx,ny,tile0,endpos,border=0)
             tile0+=n_per_file
             if filename=='0':

@@ -23,16 +23,17 @@ def move_img(event,x,y,flags,param):
 ap = argparse.ArgumentParser()
 ap.add_argument("game",help="Game that tileset is from",type=str)
 ap.add_argument("map",help="Name of the specific tileset",type=str)
-ap.add_argument("-o","--outfile",required=False,help="Name of the output PNG file",default='0')
+ap.add_argument("-o","--outfile",required=False,help="Name of the output PNG file",default='default.png')
+ap.add_argument("-s","--tilesize",required=False,help="Size of the tiles in pixels",type=int,default=8)
 ap.add_argument("-x","--sizex",required=False,help="Number of tiles in the x direction",type=int,default=30)
 ap.add_argument("-y","--sizey",required=False,help="Number of tiles in the y direction",type=int,default=30)
 ap.add_argument("-z","--zoom",required=False,help="Zoom factor for tilemap/tileset display",type=int,default=3)
 args=vars(ap.parse_args())
 
-tileset=tt.tileset(args['map'],game=args['game'])
+tileset=tt.tileset(args['map'],tilesize=(args['tilesize'],args['tilesize']),game=args['game'])
 tilesize=tileset.tilesize[0]*args['zoom']
 img=np.zeros((args['sizey']*tilesize,args['sizex']*tilesize,3),dtype='uint8')
-tileset_zoom=cv2.resize(tileset.data0,(0,0),fx=args['zoom'],fy=args['zoom'])
+tileset_zoom=cv2.resize(tileset.data0,(0,0),fx=args['zoom'],fy=args['zoom'],interpolation=cv2.INTER_NEAREST)
 tileset.resize(tilesize)
 
 cv2.namedWindow("destination image")
@@ -60,10 +61,10 @@ while True:
     if key==ord('p'):
         rotation=0
         flip=0
-        tilenum=tileset.pos_to_tile(refPt_map)
+        tilenum,dum=tileset.pos_to_tile(refPt_map)
         img=tileset.place_tile(img,tilenum,refPt_img)
     if key==ord('x'):
-        print(refPt_map)
+        cv2.imwrite(args['outfile'],img)
         break
 
 cv2.destroyAllWindows()

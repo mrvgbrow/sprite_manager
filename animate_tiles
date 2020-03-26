@@ -38,7 +38,7 @@ tileset.resize(tileset.tilesize[0]*args['zoom'])
 img=tileset.make_tileset_img(args['sizex'],args['sizey'],border=border)
 shape=img.shape
 tilesize=tileset.tilesize[0]
-composite=np.zeros(((args['sizey']+args['lines']+border)*tilesize,(args['sizex']+border)*tilesize+1,3),dtype='uint8')
+composite=np.zeros(((args['sizey']+args['lines'])*(tilesize+border),args['sizex']*(tilesize+border)+1,3),dtype='uint8')
 composite[0:shape[0],0:shape[1],0:shape[2]]=img
 
 
@@ -46,7 +46,7 @@ clicked=0
 tiles=[]
 tiles0=[]
 positions=[]
-posy=(args['sizey'])*tilesize
+posy=(args['sizey'])*(tilesize+border)
 posx=0
 
 if args['infile']=='None':
@@ -99,7 +99,7 @@ for position in positions:
         composite=imlist[i]
     i+=1
 
-durations=[10]*len(imlist)
+durations=[100]*len(imlist)
 
 if args['infile'] != 'None' and len(ftiles)>0:
     for i in range(1,len(ftiles)):
