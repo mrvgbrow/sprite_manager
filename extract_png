@@ -1,0 +1,17 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import argparse
+import numpy as np
+import cv2
+import sys
+import myimutils as myim
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input gif file",type=str)
+ap.add_argument("frame",help="Frame to extract",type=int)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output image file",default='test.png')
+args=vars(ap.parse_args())
+
+images,durations=myim.read_gif(args['infile'])
+
+cv2.imwrite(args['outfile'],images[args['frame']])

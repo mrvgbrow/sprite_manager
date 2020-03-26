@@ -14,12 +14,16 @@ args=vars(ap.parse_args())
 
 imlist1,durations = myim.read_imdir(args['infile1'])
 imlist2,durations2 = myim.read_imdir(args['infile2'])
-
+if len(durations)<len(imlist1):
+    durations=[100]*len(imlist1)
 if (imlist1[0].shape[0]==imlist2[0].shape[0] and imlist1[0].shape[1]==imlist2[0].shape[1]):
     i=0
     for i in range(len(imlist2)):
         imlist1.append(imlist2[i])
-        durations.append(durations2[i])
+        if len(durations2)>1:
+            durations.append(durations2[i])
+        else:
+            durations.append(100)
 
     myim.gif_viewer(imlist1,durations,'Result')
     imlist1=myim.convert_to_PIL(imlist1)

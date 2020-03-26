@@ -10,6 +10,8 @@ import numpy as np
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input animation",type=str)
 ap.add_argument("resize_factor",help="Factor by which to resize the image",type=float)
+ap.add_argument("-x","--xshape",help="Shape of resulting image in x dimension",type=int,required=False,default=0)
+ap.add_argument("-y","--yshape",help="Shape of resulting image in y dimension",type=int,required=False,default=0)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.gif')
 ap.add_argument("-i","--interp",required=False,help="Name of the interpolation algorithm",default='nearest')
 args=vars(ap.parse_args())
@@ -17,7 +19,10 @@ args=vars(ap.parse_args())
 imlist1,durations = myim.read_imdir(args['infile'])
 
 i=0
-shape=(int(imlist1[0].shape[0]*args['resize_factor']),int(imlist1[0].shape[1]*args['resize_factor']))
+if args['xshape']>0:
+    shape=(args['yshape'],args['xshape'])
+else:
+    shape=(int(imlist1[0].shape[0]*args['resize_factor']),int(imlist1[0].shape[1]*args['resize_factor']))
 print(shape,imlist1[0].shape)
 for i in range(len(imlist1)):
     if args['interp']=='cubic':
