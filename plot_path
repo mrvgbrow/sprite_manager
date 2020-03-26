@@ -1,0 +1,51 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import os
+import sys
+import cv2
+import numpy as np
+import argparse
+import multiprocessing
+import myimutils
+import plotfunctions as pfunc
+import myspritetools
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+import math
+
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("inpath",help="Name of the input path data file",type=str)
+    ap.add_argument("ingif",help="Name of the input GIF file",type=str)
+    ap.add_argument("-o","--outfile",required=False,help="Name of the output plot",default='default.gif')
+    ap.add_argument("-m","--smooth",required=False,help="Frames to smooth over in the speed plot.",type=int,default=5)
+    ap.add_argument("-a","--xspeed",required=False,help="Plot x coordinate of speed?",type=int,default=0)
+    ap.add_argument("-b","--yspeed",required=False,help="Plot y coordinate of speed?",type=int,default=0)
+    ap.add_argument("-x","--xcoord",required=False,help="Plot x coordinate?",type=int,default=0)
+    ap.add_argument("-y","--ycoord",required=False,help="Plot y coordinate?",type=int,default=0)
+    args=vars(ap.parse_args())
+
+    path=[]
+    (background,durations)=myimutils.read_imdir(args['ingif'])
+    f=open(args['inpath'],'r')
+    f1=f.readlines()
+    for line in f1:
+        (x,y)=line.split(',')
+        path.append((int(x),int(y)))
+    f.close()
+
+    spath=myspritetools.sprite_path(path)
+    speeds=spath.find_speeds()
+    spath.smooth(args['smooth'])
+    npath=np.array(spath.path)
+    myimutils.gif_plot(spath.speed,background,durations,xlabel='speed (pix/frame)',ylabel='Frame')
+    if args['xspeed']==1:
+        myimutils.gif_plot(spath.xspeed,background,durations,xlabel='x speed (pix/frame)',ylabel='Frame')
+    if args['yspeed']==1:
+        myimutils.gif_plot(spath.yspeed,background,durations,xlabel='y speed (pix/frame)',ylabel='Frame')
+    if args['xcoord']==1:
+        myimutils.gif_plot(npath[:,0],background,durations,xlabel='x (pix)',ylabel='Frame')
+    if args['ycoord']==1:
+        myimutils.gif_plot(npath[:,1],background,durations,xlabel='y (pix)',ylabel='Frame')

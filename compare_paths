@@ -1,0 +1,117 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import os
+import sys
+import cv2
+import numpy as np
+import argparse
+import multiprocessing
+import mycolortools as mycolor
+import myimutils
+import plotfunctions as pfunc
+import myspritetools
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+import math
+
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("infile",help="Name of the input background file",type=str)
+    ap.add_argument("inpath1",help="Name of the first input path file",type=str)
+    ap.add_argument("inpath2",help="Name of the second input path file",type=str)
+    ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+    ap.add_argument("-p","--outpath",required=False,help="Name of the output path file",default='default.pdat')
+    ap.add_argument("-l","--color",required=False,help="The color of the path to draw",type=str,default='255 255 255')
+    ap.add_argument("-m","--smooth",required=False,help="Frames to smooth over in the speed plot.",type=int,default=5)
+    ap.add_argument("-w","--weight",required=False,help="Relative transparency of line",type=float,default=0.6)
+    ap.add_argument("-v","--components",required=False,help="Length of plotted vector components",type=int,default=0)
+    ap.add_argument("-b","--barriers",required=False,help="Show barrier vectors closer than this distance",type=int,default=0)
+    ap.add_argument("-B","--bcolor",required=False,help="Barrier color",type=str,default='0')
+    ap.add_argument("-e","--eightway",required=False,help="8-directional arrows scale",type=int,default=0)
+    args=vars(ap.parse_args())
+
+    (background,durations)=myimutils.read_imdir(args['infile'])
+    outfile=args['outfile']
+
+    color=mycolor.parse_color(args['color'])
+
+    path1=[]
+    background2=[]
+    durations2=[]
+    f1=open(args['inpath1'],'r')
+    lines1=f1.readlines()
+    f2=open(args['inpath2'],'r')
+    lines2=f2.readlines()
+    i=0
+    for line in lines1:
+        new_img=background[i].copy()
+        (x,y)=line.split(',')
+        pos1=(int(x),int(y))
+        if i==len(lines2)-1:
+            break
+        (x,y)=lines2[i].split(',')
+        pos2=(int(x),int(y))
+        new_img=cv2.line(new_img,pos1,pos2,[150,150,150],1)
+        if args['components']>0:
+            offset=5
+            vfac=new_img.shape[0]*args['components']/3000
+            signs=(np.sign(pos1[0]-pos2[0]),np.sign(pos1[1]-pos2[1]))
+            vector1=(int(pos2[0]+signs[0]*vfac*(abs(pos1[0]-pos2[0])+offset)),pos2[1])
+            vector2=(pos2[0],int(pos2[1]+signs[1]*vfac*(abs(pos1[1]-pos2[1])+offset)))
+            if args['barriers']>0:
+                offset2=0
+                if signs[0]!=0:
+                    bpos1=mycolor.find_barrier(new_img,(signs[0]*offset2+pos2[0],pos2[1]),[signs[0],0],bcolor=args['bcolor'])
+                    distance1=abs(bpos1[0]-pos2[0])
+                    if distance1<40:
+                        print(distance1)
+                        new_img=cv2.line(new_img,bpos1,pos2,[0,0,255],1) 
+                        signs=(0,signs[1])
+                if signs[1]!=0:
+                    bpos2=mycolor.find_barrier(new_img,(pos2[0],signs[1]*offset2+pos2[1]),[0,signs[1]],bcolor=args['bcolor'])
+                    distance2=abs(bpos2[1]-pos2[1])
+                    if distance2<60:
+                        print(distance2)
+                        new_img=cv2.line(new_img,bpos2,pos2,[0,0,255],1) 
+                        signs=(signs[0],0)
+            if args['eightway']>0:
+                offset3=10
+                pos3=(pos2[0]+offset3,pos2[1]+offset3)
+                pos4=(pos2[0]-offset3,pos2[1]-offset3)
+                escale=args['eightway']+offset3
+                color1=[0,255,0]
+                color2=[100,100,100]
+                color=color1 if signs[0]==1 else color2
+                new_img=cv2.arrowedLine(new_img,(pos3[0],pos2[1]),(pos2[0]+escale,pos2[1]),color,1)
+                color=color1 if (signs[1]==1 and signs[0]==1) else color2
+                new_img=cv2.arrowedLine(new_img,(pos3[0],pos3[1]),(pos2[0]+escale,pos2[1]+escale),color,1)
+                color=color1 if signs[0]==-1 else color2
+                new_img=cv2.arrowedLine(new_img,(pos4[0],pos2[1]),(pos2[0]-escale,pos2[1]),color,1)
+                color=color1 if (signs[1]==-1 and signs[0]==-1) else color2
+                new_img=cv2.arrowedLine(new_img,(pos4[0],pos4[1]),(pos2[0]-escale,pos2[1]-escale),color,1)
+                color=color1 if signs[1]==1 else color2
+                new_img=cv2.arrowedLine(new_img,(pos2[0],pos3[1]),(pos2[0],pos2[1]+escale),color,1)
+                color=color1 if (signs[1]==1 and signs[0]==-1) else color2
+                new_img=cv2.arrowedLine(new_img,(pos4[0],pos3[1]),(pos2[0]-escale,pos2[1]+escale),color,1)
+                color=color1 if signs[1]==-1 else color2
+                new_img=cv2.arrowedLine(new_img,(pos2[0],pos4[1]),(pos2[0],pos2[1]-escale),color,1)
+                color=color1 if (signs[1]==-1 and signs[0]==1) else color2
+                new_img=cv2.arrowedLine(new_img,(pos3[0],pos4[1]),(pos2[0]+escale,pos2[1]-escale),color,1)
+
+#            else:
+#                new_img=cv2.arrowedLine(new_img,(pos2[0]+signs[0]*offset,pos2[1]),vector1,[0,255,0],1)
+#                new_img=cv2.arrowedLine(new_img,(pos2[0],pos2[1]+signs[1]*offset),vector2,[0,255,0],1)
+        background2.append(new_img)
+        durations2.append(durations[i])
+        i+=1
+    f1.close()
+    f2.close()
+
+#    speeds=spath.find_speeds()
+#    spath.smooth(args['smooth'])
+    myimutils.gif_viewer(background2,durations,'Comparison')
+    background2=myimutils.convert_to_PIL(background2)
+    myimutils.write_animation(background2,durations,args['outfile'],pil=0)
+
