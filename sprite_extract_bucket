@@ -1,0 +1,45 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import os
+import sys
+import cv2
+import numpy as np
+import argparse
+import myimutils as myim
+import myargutils
+import myspritetools
+import mycolortools
+import time
+import math
+
+def get_mask_diff(mask1,mask2):
+    box_area=float(mask1.shape[0]*mask1.shape[1])
+    diff=np.sum(np.absolute(mask1.astype('float')-mask2.astype('float')))/box_area
+    return diff
+
+#ap = argparse.ArgumentParser()
+#ap.add_argument("-i","--image",required=True,help="Path to the image")
+#args=vars(ap.parse_args())
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input image to extract from",type=str)
+ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+ap.add_argument("object",help="Name of the object the sprite represents",type=str)
+ap.add_argument("frame",help="Object frame number being extracted",type=str)
+ap.add_argument("-t","--threshold",required=False,help="Bucket threshold",type=int,default=25)
+args=vars(ap.parse_args())
+
+(imlist1,durations) = myim.read_imdir(sys.argv[1])
+image=imlist1[0]
+image=image[...,0:3]
+
+box=myim.capture_box(image)
+corner1=box[0]
+corner2=box[1]
+image_sub=image[corner1[1]:corner2[1],corner1[0]:corner2[0],:]
+image_sub=myim.add_alpha_channel([image_sub])
+image_sub=image_sub[0]
+mask_sub=np.zeros((image_sub.shape[0],image_sub.shape[1]),'uint8')
+mask_new=myim.select_pixels(image_sub,threshold=args['threshold'])
+image_trans=myim.maketransparent_withmask(image_sub,mask_new)
+myspritetools.add_sprite_image(image_trans,args['game'],args['object'],args['frame'])
