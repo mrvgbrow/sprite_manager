@@ -1,3 +1,4 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
 import numpy
@@ -45,9 +46,9 @@ def MaxSoFar(arr,i):
         return False
 
 # Number of game plays to average over in mean progression
-average_interval=15
+average_interval=5
 
-scorefile=open("C:/Users/sp4ce/OneDrive/Documents/"+sys.argv[1]+"/"+sys.argv[1]+".txt","r")
+scorefile=open("C:/Users/sp4ce/Google Drive/Documents/"+sys.argv[1]+"/"+sys.argv[1]+".txt","r")
 if scorefile.mode == 'r':
     contents = scorefile.readlines()
 
