@@ -1,0 +1,32 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("n_expand",help="Number of additional frames per frame",type=int)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+ap.add_argument("-f","--expandframe",required=False,help="If greater than zero, expands only specified frame",default=-1,type=int)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile'])
+if args['expandframe']>0:
+    imlist1=[imlist1[args['expandframe']]]
+
+i=0
+imlist_expand=[]
+durations_expand=[]
+for i in range(len(imlist1)):
+    for j in range(args['n_expand']+1):
+        imlist_expand.append(imlist1[i].copy())
+        if len(durations)==0:
+            durations.append(5)
+        durations_expand.append(durations[i])
+
+myim.gif_viewer(imlist_expand,durations_expand,'Result')
+imlist_expand=myim.convert_to_PIL(imlist_expand)
+myim.write_animation(imlist_expand,durations_expand,args['outfile'],pil=0)

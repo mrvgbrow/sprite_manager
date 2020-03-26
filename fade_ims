@@ -12,11 +12,16 @@ ap = argparse.ArgumentParser()
 ap.add_argument("infile1",help="Name of the starting input image.",type=str)
 ap.add_argument("infile2",help="Name of the ending input image.",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+ap.add_argument("-d","--duration",required=False,help="Duration of each frame",default=100,type=int)
 ap.add_argument("-n","--nframes",required=False,help="Number of frames over which to fade",type=int,default=50)
 args=vars(ap.parse_args())
 
 imlist1,durations = myim.read_imdir(args['infile1'])
 imlist2,durations = myim.read_imdir(args['infile2'])
+if len(imlist1)>1:
+    imlist1[0]=imlist1[len(imlist1)-1]
+if len(imlist2)>1:
+    imlist2[0]=imlist2[len(imlist2)-1]
 shape1=imlist1[0].shape
 shape2=imlist2[0].shape
 if shape1[2]==3:
@@ -32,7 +37,7 @@ for i in range(args['nframes']):
     imlist4.append(im2.copy())
 
 imlist5=myim.fade_ims(imlist3,imlist4)
-durations=[10]*len(imlist5)
+durations=[args['duration']]*len(imlist5)
 
 myim.gif_viewer(imlist5,durations,'Result')
 imlist5=myim.convert_to_PIL(imlist5)

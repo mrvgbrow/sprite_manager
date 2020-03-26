@@ -22,7 +22,6 @@ for i in range(len(imlist1)):
     phase=(i%(2*args['nframes']))/args['nframes']/2.
     beta_adjust=int(math.sin(phase*2*math.pi)*args['offset'])
     alpha_adjust=1+math.sin(phase*2*math.pi)**16*args['amplitude']
-    print(phase,alpha_adjust,beta_adjust,i)
     imlist1[i]=cv2.convertScaleAbs(imlist1[i],-1,alpha_adjust,beta_adjust)
 
 myim.gif_viewer(imlist1,durations,'Result')

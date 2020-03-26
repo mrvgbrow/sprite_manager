@@ -1,0 +1,42 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+import math
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output background file",default='test.gif')
+ap.add_argument("-t","--type",required=False,help="Type of blur to apply",default='Vertical')
+ap.add_argument("-c","--changetype",required=False,help="How to change the blur with frame",default='Linear')
+ap.add_argument("-r","--radius",required=False,help="Radius of gaussian filter to blur with.",type=int,default=2)
+ap.add_argument("-i","--iksize",required=False,help="Initial half-size of the kernel to use",type=int,default=1)
+ap.add_argument("-f","--fksize",required=False,help="Final half-size of the kernel to use",type=int,default=10)
+args=vars(ap.parse_args())
+
+imlist1,durations = myim.read_imdir(args['infile'])
+
+n_images=len(imlist1)
+i=0
+for i in range(n_images):
+    if args['changetype']=='Linear':
+        ksize=int(args['iksize']+i*(args['fksize']-args['iksize'])/n_images)*2+1
+    if args['changetype']=='Wave':
+        ksize=(args['iksize']+int((args['fksize']-args['iksize'])*math.sin(math.pi*i/n_images/2)))*2+1
+    kernel=np.zeros((ksize,ksize))
+    if args['type']=='Vertical':
+        kernel[:,int((ksize-1)/2)]=np.ones(ksize)/ksize
+    if args['type']=='Horizontal':
+        kernel[int((ksize-1)/2),:]=np.ones(ksize)/ksize
+    if args['type']=='Cross':
+        kernel[int((ksize-1)/2),:]=np.ones(ksize)/(2*ksize-1)
+        kernel[:,int((ksize-1)/2)]=np.ones(ksize)/(2*ksize-1)
+    imlist1[i]=cv2.filter2D(imlist1[i],-1,kernel)
+
+myim.gif_viewer(imlist1,durations,'Result')
+imlist1=myim.convert_to_PIL(imlist1)
+myim.write_animation(imlist1,durations,args['outfile'],pil=0)
