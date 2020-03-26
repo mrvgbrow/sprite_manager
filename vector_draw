@@ -27,14 +27,24 @@ if file_extension=='.png':
     imlist1,durations = myim.read_imdir(args['infile'])
 
     box=myim.capture_box(imlist1[0])
+    first_step=1
+
+    new_img=imlist1[0].copy()
+    sub_img=new_img[box[0][1]:box[1][1],box[0][0]:box[1][0]]
     while True:
-        point=myim.capture_point(imlist1[0][box[0][1]:box[1][1],box[0][0]:box[1][0]],mode=1)
+        if first_step==0:
+            old_point=point
+        point=myim.capture_point(sub_img,mode=1)
         if point == (0,0):
             break
         point_expand=(point[0]*args['expandfac'],point[1]*args['expandfac'])
         points.append(point_expand)
         xlist.append(point_expand[0])
         ylist.append(point_expand[1])
+        if first_step==0:
+            sub_img=cv2.line(sub_img,old_point,point,[0,255,0],1)
+        else:
+            first_step=0
     f=open(args['voutfile'],"w")
     for i in range(len(xlist)):
         f.write(str(xlist[i])+","+str(ylist[i])+"\n")
