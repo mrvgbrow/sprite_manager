@@ -10,7 +10,7 @@ import mycolortools as mycolor
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input background file",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.png')
-ap.add_argument("-c","--color",required=False,help="Color to use in edit",default='white')
+ap.add_argument("-c","--color",required=False,help="Color to use in edit",default='255 255 255')
 args=vars(ap.parse_args())
 
 sys.setrecursionlimit(1000000)
@@ -18,6 +18,8 @@ image=cv2.imread(args['infile'],cv2.IMREAD_UNCHANGED)
 
 if args['color']!='white':
     color=mycolor.parse_color(args['color'])
+else:
+    color=args['color']
 newim=myim.pix_edit(image,title=args['infile'],color=color)
 if type(newim) is not int:
     cv2.imwrite(args['outfile'],newim)

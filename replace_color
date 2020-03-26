@@ -7,7 +7,7 @@ import numpy as np
 import argparse
 import myimutils
 import myargutils
-import mycolortools
+import mycolortools as mycolor
 
 #ap = argparse.ArgumentParser()
 #ap.add_argument("-i","--image",required=True,help="Path to the image")
@@ -17,23 +17,33 @@ ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input background file",type=str)
 ap.add_argument("-f","--fuzz",required=False,help="Uncertainty in color",type=int,default=5)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='test.gif')
+ap.add_argument("-c","--cin",required=False,help="Color to replace",default='selection')
+ap.add_argument("-r","--cout",required=False,help="Color to replace with",default='selection')
 args=vars(ap.parse_args())
 
-imlist1,durations = myimutils.read_gif(args['infile'])
+imlist1,durations = myimutils.read_imdir(args['infile'])
 image1=imlist1[0]
 fuzz=args['fuzz']
 
+if args['cin']=='selection':
+    color_in=mycolor.imshow_get_color(image1,'Select Color to Replace','x')
+else:
+    color_in=mycolor.parse_color(args['cin'])
 
-color_in=mycolortools.imshow_get_color(image1,'Select Color to Replace','x')
-color_out=mycolortools.imshow_get_color(image1,'Select Color to Replace With','x')
+if args['cout']=='selection':
+    color_out=mycolor.imshow_get_color(image1,'Select Color to Replace With','x')
+else:
+    color_out=mycolor.parse_color(args['cout'])
+print(color_out, color_in)
 
 new_frames=[]
 for im in imlist1:
-    indices=mycolortools.select_color(im,color_in,fuzz)
+    indices=mycolor.select_color(im,color_in,fuzz)
     mask=myimutils.make_mask(indices,im.shape)
     image_masked=myimutils.mask_replace(im,mask,color_out)
     new_frames.append(image_masked)
 
-myimutils.write_animation(new_frames,durations,args['outfile'])
 dum=myimutils.gif_viewer(new_frames,durations,'Result')
+new_frames=myimutils.convert_to_PIL(new_frames)
+myimutils.write_animation(new_frames,durations,args['outfile'])
 
