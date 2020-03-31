@@ -30,6 +30,7 @@ ap.add_argument("-b","--bucketexclude",required=False,help="Threshold for bucket
 ap.add_argument("-i","--pil",required=False,help="Use PIL?",type=int,default=0)
 ap.add_argument("-t","--text",required=False,help="Text string to label sprite with",type=str,default='')
 ap.add_argument("-g","--bright",required=False,help="Brightness factor of padding.",type=float,default=1.0)
+ap.add_argument("-e","--ref_angle",required=False,help="Always point the sprite along the path with the specified reference angle.",type=float,default=-999)
 args=vars(ap.parse_args())
 
 game=args['game']
@@ -58,7 +59,7 @@ if args['infile'] != 'blank':
         background=[background[0]]*tempsprite.nframes()
         durations=[10*args['duration']]*len(background)
         pil=0
-    path.input_path(background)
+    path.input_path(background,ref_angle=args['ref_angle'])
 
 if args['infile']=='blank':
     center=1

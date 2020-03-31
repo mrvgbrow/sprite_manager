@@ -39,3 +39,13 @@ def sample_quadratic(pos1,pos2,nsample,sign=1):
         x=np.flip(x)
         y=np.flip(y)
     return x,y
+
+def rotate_points(origin,points,angle):
+
+    ox,oy=origin
+    points_new=[]
+    for i in range(len(points)):
+        qx=int(ox+math.cos(angle)*(points[i][0]-ox)-math.sin(angle)*(points[i][1]-oy))
+        qy=int(oy+math.sin(angle)*(points[i][0]-ox)+math.cos(angle)*(points[i][1]-oy))
+        points_new.append((qx,qy))
+    return points_new

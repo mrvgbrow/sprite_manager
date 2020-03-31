@@ -2,23 +2,32 @@
 
 import cv2
 import os
+import math
 import myimutils as myim
+import genutils as genu
 import sys
 import argparse
 import numpy as np
 import mycolortools as mycolor
+import myspritetools as mysprite
 
 
 ap = argparse.ArgumentParser()
 ap.add_argument("infile",help="Name of the input image to draw from",type=str)
+ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+ap.add_argument("object",help="Name of the object the sprite represents",type=str)
+ap.add_argument("frame",help="The particular frame in the sprite sequence",type=str)
 ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='test.gif')
 ap.add_argument("-v","--voutfile",required=False,help="Name of the vector/point output file",default='default.vdat')
 ap.add_argument("-c","--color",required=False,help="Line color.",type=str,default='white')
 ap.add_argument("-f","--frames",required=False,help="Animation frames per line.",type=int,default=3)
 ap.add_argument("-e","--expandfac",required=False,help="Factor by which the final animation is larger than the original sprite.",type=int,default=3)
+ap.add_argument("-s","--scale",required=False,help="Factor by which to scale the final sprite.",type=float,default=1)
+ap.add_argument("-r","--rotate",required=False,help="Angle by which to rotate the final sprite.",type=float,default=0)
 ap.add_argument("-l","--linewidth",required=False,help="Width of draw line.",type=int,default=1)
 args=vars(ap.parse_args())
 
+angle=args['rotate']*math.pi/180
 name,file_extension=os.path.splitext(args['infile'])
 xlist=[]
 ylist=[]
@@ -45,19 +54,36 @@ if file_extension=='.png':
             sub_img=cv2.line(sub_img,old_point,point,[0,255,0],1)
         else:
             first_step=0
-    f=open(args['voutfile'],"w")
-    for i in range(len(xlist)):
-        f.write(str(xlist[i])+","+str(ylist[i])+"\n")
-    f.close()
+    mysprite.add_sprite_vector([xlist,ylist],args['game'],args['object'],args['frame'])
+#    f=open(args['voutfile'],"w")
+#    for i in range(len(xlist)):
+#        f.write(str(xlist[i])+","+str(ylist[i])+"\n")
+#    f.close()
 else:
     f=open(args['infile'],"r")
     fl=f.readlines()
     for line in fl:
-        (x,y)=line.split(",")
+        (x,y)=line.split(" ")
         xlist.append(int(x))
         ylist.append(int(y))
         points.append((int(x),int(y)))
     f.close()
+
+
+for i in range(len(points)):
+    points[i]=(int(points[i][0]*args['scale']),int(points[i][1]*args['scale']))
+    ylist[i]=int(args['scale']*ylist[i])
+    xlist[i]=int(args['scale']*xlist[i])
+
+center=(int(np.mean(xlist)),int(np.mean(ylist)))
+
+points=genu.rotate_points(center,points,angle)
+xlist=[]
+ylist=[]
+for i in range(len(points)):
+    xlist.append(points[i][0])
+    ylist.append(points[i][1])
+    print(points[i][0],points[i][1])
 
 padfac=1.5
 shape1=int((max(ylist)-min(ylist))*padfac)
@@ -76,7 +102,7 @@ pt0=(points[0][0]-x_norm,points[0][1]-y_norm)
 xdiff=(points[1][0]-points[0][0])/fpl
 ydiff=(points[1][1]-points[0][1])/fpl
 index=0
-for i in range(fpl*(len(points)-1)-1):
+for i in range(fpl*(len(points)-1)):
     step=(i+1)-index*fpl
     pt1=(int(pt0[0]+step*xdiff),int(pt0[1]+step*ydiff))
     imhere=np.copy(im_ref)

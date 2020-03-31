@@ -47,54 +47,77 @@ class sprite_path:
         else:
             self.opacity=np.array(opacity)
 
-    def smooth(self,scale):
+    def smooth(self,scale,ref_angle=-999):
         new_path=[]
         new_speed=[]
         new_xspeed=[]
         new_yspeed=[]
+        new_angle=[]
+        angleold=0
         for i in range(len(self.path)):
             xav=0.0
             yav=0.0
             speedav=0.0
             xspeedav=0.0
             yspeedav=0.0
+            angleav=0.0
             functot=0.0
             funcref=0.0
             for k in range(2*scale+1):
                 funcref+=genu.gaussian_function(k/scale)
-            for j in range(max(0,i-2*scale),min(len(self.path),i+2*scale+1)):
+            angle0=math.atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))*180/math.pi
+            for j in range(max(0,i-2*scale),min(len(self.path)-1,i+2*scale+1)):
                 if self.path[j][0]>=0: 
-                    xav+=genu.gaussian_function((i-j)/scale)*self.path[j][0]
-                    yav+=genu.gaussian_function((i-j)/scale)*self.path[j][1]
-                    speedav+=genu.gaussian_function((i-j)/scale)*self.speed[j]
-                    xspeedav+=genu.gaussian_function((i-j)/scale)*self.xspeed[j]
-                    yspeedav+=genu.gaussian_function((i-j)/scale)*self.yspeed[j]
-                    functot+=genu.gaussian_function((i-j)/scale)
+                    gfunc=genu.gaussian_function((i-j)/scale)
+                    xav+=gfunc*self.path[j][0]
+                    yav+=gfunc*self.path[j][1]
+                    speedav+=gfunc*self.speed[j]
+                    xspeedav+=gfunc*self.xspeed[j]
+                    yspeedav+=gfunc*self.yspeed[j]
+                    if ref_angle==-999:
+                        angleav+=gfunc*self.angle1[j]
+                    else:
+                        # Avoid averaging over angles between different cycles
+                        anglehere=math.atan2((self.path[j+1][0]-self.path[j][0]),(self.path[j+1][1]-self.path[j][1]))*180/math.pi
+                        if anglehere-angle0>180:
+                            anglehere-=360
+                        if angle0-anglehere>180:
+                            anglehere+=360
+
+                        angleav+=gfunc*anglehere
+                    functot+=gfunc
             if functot>0.8*funcref:
                 xval=int(round(xav/functot))
                 yval=int(round(yav/functot))
                 speedval=speedav/functot
                 yspeedval=yspeedav/functot
                 xspeedval=xspeedav/functot
+                angleav=angleav/functot
+                if ref_angle!=-999:
+                    angleav+=ref_angle
+                angleold=angleav
             else:
                 xval=-1
                 yval=-1
                 speedval=-1
                 yspeedval=-1
                 xspeedval=-1
+                angleav=-1
             new_path.append((xval,yval))
             new_speed.append(speedval)
             new_xspeed.append(xspeedval)
             new_yspeed.append(yspeedval)
+            new_angle.append(angleav)
         self.path=new_path
         self.speed=new_speed
         self.xspeed=new_xspeed
         self.yspeed=new_yspeed
+        self.angle1=new_angle
 
-    def determine_angles(self):
-        self.angle1[0]=atan2((self.path[1][0]-self.path[0][0]),(self.path[1][1]-self.path[0][1]))
+    def determine_angles(self,ref_angle=0):
+        self.angle1[0]=math.atan2((self.path[1][0]-self.path[0][0]),(self.path[1][1]-self.path[0][1]))*180/math.pi+ref_angle
         for i in range(1,len(self.path)):
-            self.angle1[i]=atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))
+            self.angle1[i]=math.atan2((self.path[i][0]-self.path[i-1][0]),(self.path[i][1]-self.path[i-1][1]))*180/math.pi+ref_angle
 
     
     def overlay(self,background,width=2,blend=0.6,color=[255,255,255]):
@@ -107,8 +130,13 @@ class sprite_path:
     def path_length(self,ind1,ind2):
         return (math.sqrt((self.path[ind1][0]-self.path[ind2][0])**2+(self.path[ind1][1]-self.path[ind2][1])**2))
 
-    def input_path(self,images):
-        self.path,self.sizes,self.angle1,self.angle2,self.angle3,self.flipx,self.flipy,self.opacity=myim.capture_path_full(images)
+    def input_path(self,images,ref_angle=-999):
+        self.path,self.sizes,self.angle1,self.angle2,self.angle3,self.flipx,self.flipy,self.opacity,smooth=myim.capture_path_full(images)
+        if ref_angle != -999 and smooth==0:
+                smooth=1
+        if smooth!=0:
+            self.find_speeds()
+            self.smooth(smooth,ref_angle=ref_angle)
         return 0
 
     def calc_g(self,x0,y0,angle,speed,scale,frametime):
@@ -185,7 +213,11 @@ class Sprite:
         if frame == "all":
             self.read_dir(self.full_path)
         else:
-            self.read_image(self.full_path)
+            pathparts=os.path.splitext(self.full_path)
+            if pathparts[1]=='.vdat':
+                self.read_vector(self.full_path)
+            else:
+                self.read_image(self.full_path)
         self.sequence=range(len(self.data))
         self.seqflips=[]
         self.seqoffx=[]
@@ -222,6 +254,16 @@ class Sprite:
         self.n_image=1
         self.recenter()
 
+    def read_vector(self,path):
+        if os.path.isfile(path)==False:
+            print("Sprite not found.")
+            return
+        positions=np.loadtxt(path,dtype='int')
+        data=vector2image(positions[:,0],positions[:,1])
+        self.data.append(data)
+        self.n_image=1
+        self.recenter()
+
     def list_colors(self):
         color_list=[]
         for i in range(self.n_image):
@@ -243,18 +285,34 @@ class Sprite:
             print("No such sprite directory")
             return
         files=glob.glob(path+'/'+'*.png')
-        for thisim in files:
-            image=cv2.imread(thisim,cv2.IMREAD_UNCHANGED)
-            self.data.append(image)
-        self.n_image=len(files)
+        files_txt=glob.glob(path+'/'+'*.vdat')
+        if len(files_txt)>0:
+            self.vector=1
+            self.positions=[]
+            for thisim in files_txt:
+                positions=np.loadtxt(thisim,dtype='int')
+                image=vector2image(positions[:,0],positions[:,1])
+                self.data.append(image)
+                self.positions.append(positions)
+                self.n_image=len(files_txt)
+        else:
+            self.vector=0
+            self.positions=[]
+            for thisim in files:
+                image=cv2.imread(thisim,cv2.IMREAD_UNCHANGED)
+                self.data.append(image)
+                self.n_image=len(files)
         self.recenter()
 
     def resize(self,size):
         if size != 1.0:
-            for i in range(self.n_image):
-                s_image=self.data[i]
-                image=cv2.resize(s_image,(0,0),fx=size,fy=size,interpolation=cv2.INTER_NEAREST)
-                self.data[i]=image
+            if len(self.positions)>0:
+                for i in range(self.n_image):
+                    self.data[i]=vector2image(self.positions[i][:,0],self.positions[i][:,1],scale=size)
+            else:
+                for i in range(self.n_image):
+                    s_image=self.data[i]
+                    self.data[i]=cv2.resize(s_image,(0,0),fx=size,fy=size,interpolation=cv2.INTER_NEAREST)
             self.recenter()
             if len(self.seqoffx)>0:
                 for i in range(len(self.seqoffx)):
@@ -479,7 +537,8 @@ class Sprite:
             if s_index==len(self.sequence):
                 s_index=0
             img_new=self.data[self.sequence[s_index]]
-            if path.angle1[i] > 0:
+            img0=img_new.copy()
+            if path.angle1[i] != 0:
                 img_new=myim.rotate_image(img_new,path.angle1[i])
             if path.angle2[i] > 0:
                 img_new=myim.rotate3d(img_new,path.angle2[i],0.0)
@@ -492,6 +551,10 @@ class Sprite:
             if path.opacity[i] < 1.0:
                 img_new=myim.apply_opacity(img_new,path.opacity[i])
             center=self.center[self.sequence[s_index]]
+            # Correct for rotation offset in center
+            imcenter=(int(img_new.shape[1]/2),int(img_new.shape[0]/2))
+            imcenter0=(int(img0.shape[1]/2),int(img0.shape[0]/2))
+            center=(center[0]+imcenter[0]-imcenter0[0],center[1]+imcenter[1]-imcenter0[1])
             if len(self.seqflips)>0: 
                 if self.seqflips[s_index]!=0:
                     if self.seqflips[s_index]>0:
@@ -541,12 +604,27 @@ def add_sprite_image(image,game,object,frame):
     os.makedirs(dirname,exist_ok=True)
     cv2.imwrite(spath,sprite_im)
 
-def sprite_fullpath(game,object,frame):
+def add_sprite_vector(positions,game,object,frame):
+    positions=np.swapaxes(positions,0,1)
+    spath=sprite_fullpath(game,object,frame,vector=1)
+    dirname,filename=os.path.split(spath)
+    os.makedirs(dirname,exist_ok=True)
+    np.savetxt(spath,positions,fmt='%d')
+
+def sprite_fullpath(game,object,frame,vector=0):
     root_dir='C:/Users/sp4ce/Google Drive/Documents/Sprites/'
     if frame == "all":
         full_path=root_dir+game+"/"+object
     else:
-        full_path=root_dir+game+"/"+object+"/"+frame+".png"
+        path=root_dir+game+"/"+object+"/"+frame
+        if vector==1:
+            full_path=path+'.vdat'
+        else:
+            thisfile=glob.glob(path+'*')
+            if len(thisfile)>0:
+                full_path=thisfile[0]
+            else:
+                full_path=path+'.png'
 
     return full_path
 
@@ -607,3 +685,17 @@ def add_sprite_blank(game,object,frame="all",size=1.0,rotate=0.0,pace=1,path=[0]
             posx=int(blank_size_x/2)
         path=(posx,posy)
     return mysprite.overlay(images,path)
+
+def vector2image(x,y,color=[255,255,255,255],width=1,scale=1):
+    xsize=int((np.max(x)-np.min(x))*scale)+int(width/2+1)
+    ysize=int((np.max(y)-np.min(y))*scale)+int(width/2+1)
+    xmin=np.min(x)
+    ymin=np.min(y)
+    image=np.zeros((ysize,xsize,4),dtype='uint8')
+    i=0
+    for xp in x:
+        i+=1
+        if i==len(x):
+            break
+        image=cv2.line(image,(int((x[i-1]-xmin)*scale),int((y[i-1]-ymin)*scale)),(int((x[i]-xmin)*scale),int((y[i]-ymin)*scale)),color,width)
+    return image

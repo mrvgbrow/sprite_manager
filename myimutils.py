@@ -547,7 +547,7 @@ def capture_path_full(images):
 
     refPt=(0,0)
     i=0
-    info_window=np.zeros((120,1000,3))
+    info_window=np.zeros((160,1000,3))
     cv2.namedWindow('Define Sprite Path')
     cv2.setMouseCallback('Define Sprite Path',click_mouseover)
     path=[(-2,-2)]*len(images)
@@ -564,6 +564,7 @@ def capture_path_full(images):
     ref_angle=0
     accel=[-2]*len(images)
     loop=-1
+    smooth=0
     while True:
         info_window*=0
         info_string='Frame: '+str(i)+', (x,y) = '+str(refPt)
@@ -591,9 +592,13 @@ def capture_path_full(images):
             info_string3+='  Flipy: '+str(flipy[i])
         if accel[i]!=-2:
             info_string3+='  Acceleration: '+str(accel[i]-1)
+        info_string4=''
+        if smooth!=0:
+            info_string4+='Smoothing Time: '+str(smooth)+' frames'
         cv2.putText(info_window,info_string,(10,35),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         cv2.putText(info_window,info_string2,(10,65),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         cv2.putText(info_window,info_string3,(10,95),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+        cv2.putText(info_window,info_string4,(10,125),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
         thisim=images[i]
         cv2.imshow('Define Sprite Path',thisim.astype('uint8'))
         cv2.imshow('Info',info_window)
@@ -658,6 +663,10 @@ def capture_path_full(images):
                 angle3[i]=ref_angle
             else:
                 angle3[i]=(angle3[i]+angle_increment)
+        if key==ord('o'):
+            smooth+=1
+        if key==ord('O'):
+            smooth-=1
         if key==ord('Y'):
             if angle3[i]==-2:
                 angle3[i]=ref_angle
@@ -674,7 +683,11 @@ def capture_path_full(images):
             else:
                 size[i]=(size[i][0]/1.1,size[i][1]/1.1)
         if key==ord('l'):
-            path[i]=(-1,-1)
+            if path[i]==(-1,-1):
+                path[i]=oldpath
+            else:
+                oldpath=path[i]
+                path[i]=(-1,-1)
         if key==ord('L'):
             if loop!=-1:
                 loop=-loop
@@ -720,7 +733,7 @@ def capture_path_full(images):
             accel[i]=accel[ref_index]
             opacity[i]=opacity[ref_index]
     cv2.destroyAllWindows()
-    return path,size,angle,angle2,angle3,flipx,flipy,opacity
+    return path,size,angle,angle2,angle3,flipx,flipy,opacity,smooth
 
 def fill_discrete(array,nullval=-2):
     nowarr=array[0]
@@ -943,16 +956,24 @@ def fill_square(image,position,halfside,blend=0,color=[255,255,255]):
 
 def find_offset(array1,array2,indices,direction=1,offset_range=3):
     most_matches=0
-    for offset in range(-offset_range,offset_range+1):
-        if direction==1:
-            indices_comp=(indices[0]+offset,indices[1])
-        else:
-            indices_comp=(indices[0]+offset,indices[1])
-        compare=np.nonzero(array1[indices]==array2[indices_comp])
-        nmatch=(compare[0].shape)[0]
-        if nmatch>most_matches:
-            most_matches=nmatch
-            offset_ref=offset
+    if direction==1:
+        offset_range1=offset_range
+        offset_range2=0
+    if direction==0:
+        offset_range1=0
+        offset_range2=offset_range
+    if direction==2:
+        offset_range1=offset_range
+        offset_range2=offset_range
+    offset_ref=(0,0)
+    for offset1 in range(-offset_range1,offset_range1+1):
+        for offset2 in range(-offset_range2,offset_range2+1):
+            indices_comp=(indices[0]+offset1,indices[1]+offset2)
+            compare=np.nonzero(array1[indices]==array2[indices_comp])
+            nmatch=(compare[0].shape)[0]
+            if nmatch>most_matches:
+                most_matches=nmatch
+                offset_ref=(offset1,offset2)
     return offset_ref
 
 def axis_ratio_34(inrat):
