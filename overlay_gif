@@ -1,0 +1,66 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import sys
+import argparse
+import numpy as np
+import math
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile1",help="Name of the background animation",type=str)
+ap.add_argument("infile2",help="Name of the animation to embed",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output animation file",default='default.gif')
+ap.add_argument("-l","--loop",required=False,help="Loop overlaid animation?",type=int,default=0)
+ap.add_argument("-s","--subsample",required=False,help="Subsampling of embedded animation",type=int,default=1)
+ap.add_argument("-i","--startframe",required=False,help="Initial frame of overlay",type=int,default=0)
+args=vars(ap.parse_args())
+
+imlist1,durations1 = myim.read_imdir(args['infile1'])
+imlist2,durations2 = myim.read_imdir(args['infile2'])
+subsample=args['subsample']
+imlist3=[]
+durations3=[]
+for i in range(len(imlist2)):
+    if i%subsample==0:
+        imlist3.append(imlist2[i])
+        durations3.append(durations2[i])
+
+shape1=imlist1[0].shape
+shape2=imlist2[0].shape
+nc1=shape1[2]
+nc2=shape2[2]
+if nc1<4:
+    imlist1=myim.add_alpha_channel(imlist1)
+if nc2<4:
+    imlist3=myim.add_alpha_channel(imlist3)
+embed_pos=myim.capture_point(imlist1[args['startframe']])
+imlist4=[]
+j=0
+overlay=1
+for i in range(0,args['startframe']):
+    imlist4.append(imlist1[i])
+for i in range(args['startframe'],len(imlist1)):
+    if overlay==1:
+        imlist4.append(myim.add_images(imlist3[j],imlist1[i],embed_pos[0],embed_pos[1]))
+    else:
+        imlist4.append(imlist1[i])
+    if j==len(imlist3)-1:
+        if args['loop']==1:
+            j=0
+        else:
+            overlay=0
+    else:
+        j+=1
+
+
+
+
+imlist1=None
+imlist2=None
+imlist3=None
+
+myim.gif_viewer(imlist4,durations1,'Result')
+imlist4=myim.convert_to_PIL(imlist4)
+myim.write_animation(imlist4,durations1,args['outfile'],pil=0)

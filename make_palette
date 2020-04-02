@@ -1,0 +1,22 @@
+#!/c/Users/sp4ce/AppData/Local/Programs/Python/Python38-32/python
+
+import cv2
+import myimutils as myim
+import mycolortools as mycolor
+import genutils as genu
+import sys
+import argparse
+import backgroundtools as bgtools
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("infile",help="Name of the input animation",type=str)
+ap.add_argument("game",help="Name of the game the sprite is from",type=str)
+ap.add_argument("-o","--outfile",required=False,help="Name of the output file",default='default.gif')
+args=vars(ap.parse_args())
+
+
+imlist1,durations = myim.read_imdir(args['infile'])
+imlist1,color_dict=mycolor.make_color_dict(imlist1)
+palette=mycolor.palette(color_dict)
+palette.save_palette(args['game'])

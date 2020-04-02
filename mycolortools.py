@@ -1,4 +1,5 @@
 
+import json
 import math
 import cv2
 import numpy as np
@@ -12,6 +13,22 @@ colorsRGB = {
         'green': (0,255,0),
         'blue': (0,0,255)
     }
+
+class palette:
+    def __init__(self,data,game='None',filename='None'):
+        self.root_dir='C:/Users/sp4ce/Google Drive/Documents/Palettes'
+        if game != 'None':
+            path=self.root_dir+'/'+game+'/palette.json'
+            color_dict=self.read_palette(path)
+            self.data=color_dict
+        else:
+            self.data=data
+
+    def save_palette(self,game,filename='None',append=0):
+        gamedir=self.root_dir+'/'+game+'/'
+        os.makedirs(gamedir,exist_ok=True)
+        with open(gamedir+'palette.txt','w') as file:
+            file.write(json.dumps(self.data))
 
 def color_distance(color1,color2):
     color1=color1.astype('int')
@@ -79,13 +96,20 @@ def bucket_select(image,title='Image',threshold=25):
             return np.nonzero(mask==1)
 
 
-def color_combine(image):
+def color_combine(image,color_dict='None'):
     im=np.zeros([image.shape[0],image.shape[1]],'int')
     im=1000000*image[...,0].astype('int')+1000*image[...,1].astype('int')+image[...,2].astype('long')
+    if color_dict!='None':
+        for k in color_dict:
+            im[np.nonzero(im==int(k))]=color_dict[k]
     return im
 
-def color_expand(image):
+def color_expand(image,d='None'):
+    image=image.astype('int')
     im=np.zeros([image.shape[0],image.shape[1],3],'uint8')
+    if d!= 'None':
+        for k in d:
+            image[np.nonzero(image==k)]=int(d[k])
     im[:,:,0]=image[:,:]/1000000
     im[:,:,1]=(image[:,:]-1000000*im[:,:,0].astype('int'))/1000
     im[:,:,2]=image[:,:]-1000000*im[:,:,0]-1000*im[:,:,1]
@@ -185,3 +209,35 @@ def find_barrier(image,start,direction,threshold=25,bcolor='0'):
         if bcolor != '0':
             cdiff=-cdiff
     return (position[0],position[1])
+
+def make_color_dict(images):
+    d={}
+    val=0
+    imlist2=[]
+    for i in range(len(images)):
+        im2=np.empty((images[0].shape[0],images[0].shape[1]),'uint8')
+        image=images[i]
+        im=1000000*image[...,0].astype('int')+1000*image[...,1].astype('int')+image[...,2].astype('long')
+        for n in range(im.shape[1]):
+            for m in range(im.shape[0]):
+                try: 
+                    im2[m,n]=d[int(im[m,n])]
+                except:
+                    im2[m,n]=val
+                    d[int(im[m,n])]=val
+                    val+=1
+        imlist2.append(im2)
+    return imlist2,d
+
+            
+def read_palette(game):
+    root_dir='C:/Users/sp4ce/Google Drive/Documents/Palettes'
+    if game != 'None':
+        path=root_dir+'/'+game+'/palette.txt'
+    if os.path.isfile(path)==False:
+        print("Palette not found.")
+        return
+    with open(path,'r') as file:
+        d=json.loads(file.read())
+    return d
+
